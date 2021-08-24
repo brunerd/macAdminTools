@@ -1,6 +1,6 @@
 #!/bin/bash
 : <<-LICENSE_BLOCK
-setAutoLogin - Copyright (c) 2021 Joel Bruner (https://github.com/brunerd/macAdminTools)
+setAutoLogin - Copyright (c) 2021 Joel Bruner (https://github.com/brunerd)
 Licensed under the MIT License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -22,7 +22,7 @@ PW="${2}"
 # FUNCTIONS #
 #############
 
-#takes hex string representations and xors then together, returns ASCII value
+#given a string creates data for /etc/kcpassword
 function kcpasswordEncode {
 
 	#ascii string
@@ -45,7 +45,9 @@ function kcpasswordEncode {
 			#get the current hex representation element
 			local charHex=${thisStringHex_array[$i]}
 		
-			#use printf to xor the two, xxd to encode and append to the encodedString variable
+			#use $(( shell Aritmethic )) to ^ xor the two 0x-prepended hex values to decimal (?!)
+			#use print to convert to two char hex value
+			#use xxd to encode to actual value and append to the encodedString variable
 			local encodedString+=$(printf "%X" "$(( 0x${charHex_cipher} ^ 0x${charHex} ))" | xxd -r -p)
 		done
 	#an empty string encodes differently
