@@ -54,8 +54,8 @@ function kcpasswordEncode {
 			#get the current hex representation element
 			local charHex=${thisStringHex_array[$i]}
 		
-			#use $(( shell Aritmethic )) to ^ xor the two 0x-prepended hex values to decimal (?!)
-			#use print to convert to two char hex value
+			#use $(( shell Aritmethic )) to ^ xor the two 0x-prepended hex values to decimal (ugh)
+			#then printf to convert to two char hex value
 			#use xxd to encode to actual value and append to the encodedString variable
 			local encodedString+=$(printf "%X" "$(( 0x${charHex_cipher} ^ 0x${charHex} ))" | xxd -r -p)
 		done
