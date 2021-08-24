@@ -31,7 +31,7 @@ function jamflog {
 	echo "$(date +'%a %b %d %H:%M:%S') ${myComputerName:="$(scutil --get ComputerName)"} ${myName:="$(basename "${0}" | sed 's/\..*$//')"}[${myPID:=$$}]: ${1}" | tee -a "${logFile}" 2>/dev/null
 }
 
-#takes hex string representations and xors then together, returns ASCII value
+#given a string creates data for /etc/kcpassword
 function kcpasswordEncode {
 
 	#ascii string
@@ -54,12 +54,14 @@ function kcpasswordEncode {
 			#get the current hex representation element
 			local charHex=${thisStringHex_array[$i]}
 		
-			#use printf to xor the two, xxd to encode and append to the encodedString variable
+			#use $(( shell Aritmethic )) to ^ xor the two 0x-prepended hex values to decimal (?!)
+			#use print to convert to two char hex value
+			#use xxd to encode to actual value and append to the encodedString variable
 			local encodedString+=$(printf "%X" "$(( 0x${charHex_cipher} ^ 0x${charHex} ))" | xxd -r -p)
 		done
 	#an empty string encodes differently
 	else	
-		#static hex for an empty password
+		#static hex for an empty password as written by macOS
 		local emptyStringHex_array=( 7D EE 94 4A A1 ED 22 A0 4F 90 D2 C7 )
 
 		for ((i=0; i < ${#emptyStringHex_array[@]}; i++)); do
