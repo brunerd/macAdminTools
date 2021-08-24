@@ -1,0 +1,18 @@
+#!/bin/bash
+#Joel Bruner
+#an example preflight
+
+function jamflog
+{
+#this outputs in jamf.log format: <Day> <Month> DD HH:MM:SS <HOSTNAME> ProcessName[PID]: <Message>
+#no switch: write to both the jamf.log and echo to console
+echo "$(date +'%a %b %d %H:%M:%S') ${myHostname:="$(hostname | cut -d . -f1)"} ${myName:="$(basename "${0}" | sed 's/\..*$//')"}[${myPID:=$$}]: ${1}" | tee -a /var/log/jamf.log
+}
+
+#get the path of our current temp/sandboxed "scripts" folder folder (/tmp/PKInstallSandbox.XXXXXX) 
+myPath=$(dirname "${0}")
+
+#do stuff and log it to jamf.log
+#jamflog "Preinstall..."
+
+exit 0

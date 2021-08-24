@@ -1,0 +1,28 @@
+#!/bin/bash
+#Joel Bruner
+#example postflight to run all pkg files found in the "scripts" folder, a self-cleaning sandboxed folder
+
+function jamflog
+{
+#this outputs in jamf.log format: <Day> <Month> DD HH:MM:SS <HOSTNAME> ProcessName[PID]: <Message>
+#no switch: write to both the jamf.log and echo to console
+echo "$(date +'%a %b %d %H:%M:%S') ${myHostname:="$(hostname | cut -d . -f1)"} ${myName:="$(basename "${0}" | sed 's/\..*$//')"}[${myPID:=$$}]: ${1}" | tee -a /var/log/jamf.log
+}
+
+
+#get the path of our current temp/sandboxed "scripts" folder folder (/tmp/PKInstallSandbox.XXXXXX) 
+myPath=$(dirname "${0}")
+
+#find all the *pkg file in the first level of our sandboxed folder
+pkgList=$(find "${myPath}" -name '*pkg' -depth 1)
+
+#ignore spaces, newlines only
+IFS=$'\n'
+
+#loop through the list of packages and install them
+for pkg in ${pkgList}; do
+    jamflog "Installing: ${pkg}"
+    /usr/sbin/installer -target / -pkg "${pkg}"
+done
+
+exit 0
