@@ -59,6 +59,24 @@ function kcpasswordEncode {
 			#use xxd to encode to actual value and append to the encodedString variable
 			local encodedString+=$(printf "%X" "$(( 0x${charHex_cipher} ^ 0x${charHex} ))" | xxd -r -p)
 		done
+
+		#under 12 get padding by subtraction
+		if [ "${#thisStringHex_array[@]}" -lt 12  ]; then
+			local padding=$(( 12 -  ${#thisStringHex_array[@]} ))
+		#over 12 get padding by subtracting remainder of modulo 12
+		elif [ "$(( ${#thisStringHex_array[@]} % 12 ))" -ne 0  ]; then
+			local padding=$(( (12 - ${#thisStringHex_array[@]} % 12) ))
+		#no padding needed
+		else
+			local padding=0
+		fi
+		
+		
+		#pad the end with multiples of 12 
+		for ((i=0; i < ${padding}; i++)); do
+			local encodedString+=$(xxd -r -p <<< "01")
+		done
+
 	#an empty string encodes differently
 	else	
 		#static hex for an empty password as written by macOS
