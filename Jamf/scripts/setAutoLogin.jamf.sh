@@ -72,9 +72,16 @@ function kcpasswordEncode {
 		fi
 		
 		
-		#pad the end with multiples of 12 
-		for ((i=0; i < ${padding}; i++)); do
-			local encodedString+=$(xxd -r -p <<< "01")
+		#pad the end so length is multiple of 12
+		local j
+		for ((j=0; j < ${padding}; j++, i++)); do
+
+			#get current cipher character
+			charHex_cipher=${cipherHex_array[$(( $i % 10 ))]}
+			
+			#add the cipher to the end as padding			
+			encodedString+=$(printf "%02X" "0x${charHex_cipher}" | xxd -r -p)
+			#encodedString+=$(xxd -r -p <<< "01")
 		done
 
 	#an empty string encodes differently
