@@ -57,7 +57,7 @@ function kcpasswordEncode {
 			#use $(( shell Aritmethic )) to ^ xor the two 0x-prepended hex values to decimal (ugh)
 			#then printf to convert to two char hex value
 			#use xxd to encode to actual value and append to the encodedString variable
-			local encodedString+=$(printf "%X" "$(( 0x${charHex_cipher} ^ 0x${charHex} ))" | xxd -r -p)
+			local encodedString+=$(printf "%02X" "$(( 0x${charHex_cipher} ^ 0x${charHex} ))" | xxd -r -p)
 		done
 
 		#under 12 get padding by subtraction
