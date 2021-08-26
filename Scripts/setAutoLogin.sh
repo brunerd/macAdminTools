@@ -29,60 +29,47 @@ function kcpasswordEncode {
 	local thisString="${1}"
 	local i
 
-	#if there is string data
-	if [ -n "${thisString}" ]; then
-		#converted to hex representation with spaces
-		local thisStringHex_array=( $(echo -n "${thisString}" | xxd -p -u | sed 's/../& /g') )
+	#converted to hex representation with spaces
+	local thisStringHex_array=( $(echo -n "${thisString}" | xxd -p -u | sed 's/../& /g') )
 
-		#macOS cipher hex ascii representation array
-		local cipherHex_array=( 7D 89 52 23 D2 BC DD EA A3 B9 1F )
+	#macOS cipher hex ascii representation array
+	local cipherHex_array=( 7D 89 52 23 D2 BC DD EA A3 B9 1F )
 
-		#cycle through each element of the array
-		for ((i=0; i < ${#thisStringHex_array[@]}; i++)); do
-			#use modulus to loop through the cipher array elements
-			local charHex_cipher=${cipherHex_array[$(( $i % 10 ))]}
+	#cycle through each element of the array
+	for ((i=0; i < ${#thisStringHex_array[@]}; i++)); do
+		#use modulus to loop through the cipher array elements
+		local charHex_cipher=${cipherHex_array[$(( $i % 11 ))]}
 
-			#get the current hex representation element
-			local charHex=${thisStringHex_array[$i]}
-		
-			#use $(( shell Aritmethic )) to ^ xor the two 0x-prepended hex values to decimal (ugh)
-			#then printf to convert to two char hex value
-			#use xxd to encode to actual value and append to the encodedString variable
-			local encodedString+=$(printf "%02X" "$(( 0x${charHex_cipher} ^ 0x${charHex} ))" | xxd -r -p)
-		done
+		#get the current hex representation element
+		local charHex=${thisStringHex_array[$i]}
+	
+		#use $(( shell Aritmethic )) to ^ xor the two 0x-prepended hex values to decimal (ugh)
+		#then printf to convert to two char hex value
+		#use xxd to encode to actual value and append to the encodedString variable
+		local encodedString+=$(printf "%02X" "$(( 0x${charHex_cipher} ^ 0x${charHex} ))" | xxd -r -p)
+	done
 
-		#under 12 get padding by subtraction
-		if [ "${#thisStringHex_array[@]}" -lt 12  ]; then
-			local padding=$(( 12 -  ${#thisStringHex_array[@]} ))
-		#over 12 get padding by subtracting remainder of modulo 12
-		elif [ "$(( ${#thisStringHex_array[@]} % 12 ))" -ne 0  ]; then
-			local padding=$(( (12 - ${#thisStringHex_array[@]} % 12) ))
-		#no padding needed
-		else
-			local padding=0
-		fi
-		
-		
-		#pad the end so length is multiple of 12
-		local j
-		for ((j=0; j < ${padding}; j++, i++)); do
-			#get current cipher character
-			charHex_cipher=${cipherHex_array[$(( $i % 10 ))]}
-			
-			#add the cipher to the end as padding			
-			encodedString+=$(printf "%02X" "0x${charHex_cipher}" | xxd -r -p)
-		done
-
-	#an empty string encodes differently
-	else	
-		#static hex for an empty password as written by macOS
-		local emptyStringHex_array=( 7D EE 94 4A A1 ED 22 A0 4F 90 D2 C7 )
-
-		for ((i=0; i < ${#emptyStringHex_array[@]}; i++)); do
-			#use printf to xor the two, xxd to encode and append to the encodedString variable
-			local encodedString+=$(printf "%X" "0x${emptyStringHex_array[i]}" | xxd -r -p)
-		done
+	#under 12 get padding by subtraction
+	if [ "${#thisStringHex_array[@]}" -lt 12  ]; then
+		local padding=$(( 12 -  ${#thisStringHex_array[@]} ))
+	#over 12 get padding by subtracting remainder of modulo 12
+	elif [ "$(( ${#thisStringHex_array[@]} % 12 ))" -ne 0  ]; then
+		local padding=$(( (12 - ${#thisStringHex_array[@]} % 12) ))
+	#no padding needed
+	else
+		local padding=0
 	fi
+	
+	
+	#pad the end so length is multiple of 12
+	local j
+	for ((j=0; j < ${padding}; j++, i++)); do
+		#get current cipher character
+		charHex_cipher=${cipherHex_array[$(( $i % 11 ))]}
+		
+		#add the cipher to the end as padding			
+		encodedString+=$(printf "%02X" "0x${charHex_cipher}" | xxd -r -p)
+	done
 
 	#return the string without a newline
 	echo -n "${encodedString}"
