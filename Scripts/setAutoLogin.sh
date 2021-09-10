@@ -1,6 +1,6 @@
 #!/bin/bash
 : <<-LICENSE_BLOCK
-setAutoLogin - Copyright (c) 2021 Joel Bruner (https://github.com/brunerd)
+setAutoLogin (20200910) - Copyright (c) 2021 Joel Bruner (https://github.com/brunerd)
 Licensed under the MIT License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -55,9 +55,9 @@ function kcpasswordEncode {
 	#over 12 get padding by subtracting remainder of modulo 12
 	elif [ "$(( ${#thisStringHex_array[@]} % 12 ))" -ne 0  ]; then
 		local padding=$(( (12 - ${#thisStringHex_array[@]} % 12) ))
-	#no padding needed
+	#otherwise even multiples of 12 still need 12 padding
 	else
-		local padding=0
+		local padding=12
 	fi
 	
 	
