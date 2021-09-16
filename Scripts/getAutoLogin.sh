@@ -58,11 +58,13 @@ fi
 #get on auto user
 autoLoginUser=$(/usr/bin/defaults read /Library/Preferences/com.apple.loginwindow autoLoginUser -string "${USERNAME}" 2>/dev/null)
 
-if [ -z "${autoLoginUser}" ]; then
-	echo "Auto login disabled"
-else
-	echo "Auto login user: ${autoLoginUser}"
+#echo it out or fall back to <NOT_SET>
+echo "Auto login user: ${autoLoginUser:-<NOT_SET>}"
+
+if [ -f /etc/kcpassword ]; then
 	echo "Password: $(kcpasswordDecode "$(</etc/kcpassword)")"
+else
+	echo "Password: <NOT_SET>"
 fi
 
 exit 0
