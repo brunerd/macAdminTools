@@ -43,12 +43,12 @@ commandKeyDown=$(osascript -l JavaScript -e "ObjC.import('Cocoa'); ($.NSEvent.mo
 
 #versions you want to test models against, space delimted
 #remove those you don't want to check on, add old or new ones you need to test
-versionsToCheck="10.13 10.14 10.15 11"
+versionsToCheck="10.13 10.14 10.15 11 12"
 #uncomment to always test against "all"
 #versionsToCheck="10.4 10.5 10.6 10.7 10.8 10.9 10.10 10.11 10.12 10.13 10.14 10.15 11"
 
 #if ALL is used for -v it will use this variable
-versionsToCheck_ALL="10.4 10.5 10.6 10.7 10.8 10.9 10.10 10.11 10.12 10.13 10.14 10.15 11"
+versionsToCheck_ALL="10.4 10.5 10.6 10.7 10.8 10.9 10.10 10.11 10.12 10.13 10.14 10.15 11 12"
 
 #For determining support:
 #Macs: 
@@ -193,13 +193,24 @@ iMac14,4
 iMacPro1,1
 MacBook8,1
 MacBookAir6,1
-MacBookPro11,1
+MacBookPro11,1 MacBookPro17,1
 Macmini7,1
 MacPro6,1
 VMWare12,1
 Parallels16,1"
 
-#macOS12_MIN_MAX_SUPPORTED=""
+macOS12_MIN_MAX_SUPPORTED="
+iMac16,1
+iMacPro1,1
+MacBook9,1
+MacBookAir7,1
+MacBookPro12,1
+Macmini7,1
+MacPro6,1
+VMWare12,2
+Parallels16,1"
+
+#macOS13_MIN_MAX_SUPPORTED=""
 
 #NOTES:
 #When a new OS ships this must be updated AT LEAST with the MINIMUM REQUIRED HARDWARE to run the OS
@@ -241,6 +252,8 @@ iMac18,3
 iMac19,1
 iMac20,1
 iMac20,2
+iMac21,1
+iMac21,2
 iMacPro1,1
 MacBook1,1
 MacBook2,1
@@ -309,6 +322,10 @@ MacBookPro16,2
 MacBookPro16,3
 MacBookPro16,4
 MacBookPro17,1
+MacBookPro18,1
+MacBookPro18,2
+MacBookPro18,3
+MacBookPro18,4
 Macmini1,1
 Macmini2,1
 Macmini3,1
@@ -339,6 +356,7 @@ VMWare10,1
 VMWare11,1
 VMWare11,5
 VMWare12,1
+VMWare12,2
 Parallels8,1
 Parallels9,1
 Parallels10,1
@@ -348,8 +366,7 @@ Parallels13,1
 Parallels14,1
 Parallels15,1
 Parallels16,1
-#these do not exist yet...
-iMacPro2,1
+Parallels17,1
 "
 
 #############
