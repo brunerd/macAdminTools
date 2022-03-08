@@ -8,9 +8,7 @@ function inMeeting_Webex {
 }
 
 if inMeeting_Webex; then
-	echo "In Webex meeting"
-	exit 1
+	echo "In Zoom meeting... don't be a jerk"
 else
 	echo "Not Webex in meeting"
-	exit 0
 fi
