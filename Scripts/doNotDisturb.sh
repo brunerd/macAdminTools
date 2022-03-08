@@ -4,15 +4,6 @@
 
 #An example of detecting Do Not Disturb (macOS 10.13-12)
 
-#turn on debug set -x logging
-shiftKeyDown=$(osascript -l JavaScript -e "ObjC.import('Cocoa'); ($.NSEvent.modifierFlags & $.NSEventModifierFlagShift) > 1")
-#set xtraceFlag if file(s) found or Command key is held down
-[ "${shiftKeyDown}" == "true" ] && xtraceFlag=1
-
-#set xtraceFlag if file found (Command Key down will happen after we determine this is a USER initiated run)
-[ -f /tmp/debug ] && xtraceFlag=1
-[ -n "$xtraceFlag" ] && set -x && jamflog "xtrace command expansion logging"
-
 function doNotDisturb()(
 
 	OS_major="$(sw_vers -productVersion | cut -d. -f1)"
@@ -45,7 +36,7 @@ function doNotDisturb()(
 	fi
 )
 if doNotDisturb; then
-	echo "DnD/Focus is ON"
+	echo "DnD/Focus is ON... don't be a jerk"
 else
 	echo "DnD/Focus is OFF"
 fi
