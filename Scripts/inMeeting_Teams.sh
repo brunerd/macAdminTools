@@ -32,7 +32,7 @@ function inMeeting_Teams ()(
 
 
 if inMeeting_Teams; then
-	echo "In Teams Meeting"
+	echo "In Teams Meeting... don't be a jerk"
 else
 	echo "Not in Teams Meeting"
 fi
