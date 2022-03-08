@@ -8,7 +8,7 @@ function inMeeting_Zoom {
 }
 
 if inMeeting_Zoom; then
-	echo "In Zoom meeting"
+	echo "In Zoom meeting... don't be a jerk"
 else
 	echo "Not in Zoom meeting"
 fi
