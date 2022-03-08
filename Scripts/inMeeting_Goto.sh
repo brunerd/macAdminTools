@@ -8,9 +8,7 @@ function inMeeting_Goto() {
 }
 
 if inMeeting_Goto; then
-	echo "In Goto meeting"
-	exit 1
+	echo "In Goto meeting... don't be a jerk"
 else
 	echo "Not in Goto meeting"
-	exit 0
 fi
