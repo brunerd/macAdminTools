@@ -6,7 +6,7 @@
 function inPresentationMode {
 	#Apple Dev Docs: https://developer.apple.com/documentation/iokit/iopmlib_h/iopmassertiontypes
 	#ignore assertions without the process in parentheses and any coreaudiod procs
-	assertingApps=(/usr/bin/pmset -g assertions | /usr/bin/awk '/NoDisplaySleepAssertion | PreventUserIdleDisplaySleep/ && match($0,/\(.+\)/) && ! /coreaudiod/ {gsub(/^.*\(/,"",$0); gsub(/\).*$/,"",$0); print};')
+	assertingApps=$(/usr/bin/pmset -g assertions | /usr/bin/awk '/NoDisplaySleepAssertion | PreventUserIdleDisplaySleep/ && match($0,/\(.+\)/) && ! /coreaudiod/ {gsub(/^.*\(/,"",$0); gsub(/\).*$/,"",$0); print};')
 	[ -n "${assertingApps}" ] && return 0 || return 1
 }
 
