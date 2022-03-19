@@ -1,12 +1,12 @@
 #!/bin/sh
-#inPresentationMode (20220316) Copyright (c) 2022 Joel Bruner (https://github.com/brunerd)
+#inPresentationMode (20220319) Copyright (c) 2022 Joel Bruner (https://github.com/brunerd)
 #with code from Installomator (https://github.com/Installomator/Installomator) Copyright 2020 Armin Briegel, PR 268 by Raptor399 (Patrick Atoon)
 #Licensed under the MIT License
 
 function inPresentationMode {
 	#Apple Dev Docs: https://developer.apple.com/documentation/iokit/iopmlib_h/iopmassertiontypes
-	#ignore assertions without the process in parentheses and any coreaudiod procs
-	assertingApps=$(/usr/bin/pmset -g assertions | /usr/bin/awk '/NoDisplaySleepAssertion | PreventUserIdleDisplaySleep/ && match($0,/\(.+\)/) && ! /coreaudiod/ {gsub(/^.*\(/,"",$0); gsub(/\).*$/,"",$0); print};')
+	#ignore assertions without the process in parentheses, any coreaudiod procs, and "Video Wake Lock" is just Chrome playing a Youtube vid in the foreground
+	assertingApps=$(/usr/bin/pmset -g assertions | /usr/bin/awk '/NoDisplaySleepAssertion | PreventUserIdleDisplaySleep/ && match($0,/\(.+\)/) && ! /coreaudiod/ && ! /Video\ Wake\ Lock/ {gsub(/^.*\(/,"",$0); gsub(/\).*$/,"",$0); print};')
 	[ -n "${assertingApps}" ] && return 0 || return 1
 }
 
