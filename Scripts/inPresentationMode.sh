@@ -1,6 +1,6 @@
 #!/bin/sh
 #inPresentationMode (20220319) Copyright (c) 2022 Joel Bruner (https://github.com/brunerd)
-#with code from Installomator (https://github.com/Installomator/Installomator) Copyright 2020 Armin Briegel, PR 268 by Raptor399 (Patrick Atoon)
+#with code from Installomator (PR 268) (https://github.com/Installomator/Installomator) Copyright 2020 Armin Briegel
 #Licensed under the MIT License
 
 function inPresentationMode {
