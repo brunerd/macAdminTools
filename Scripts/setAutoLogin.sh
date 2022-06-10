@@ -92,8 +92,7 @@ if [ -n "${USERNAME}" ]; then
 	chmod u=rw,go= /etc/kcpassword
 
 	#turn on auto login
-	#/usr/bin/defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser -string "${USERNAME}"
-
+	/usr/bin/defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser -string "${USERNAME}"
 	echo "Auto login enabled for '${USERNAME}'"
 
 #if not USERNAME turn OFF
