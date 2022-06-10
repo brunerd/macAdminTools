@@ -1,6 +1,6 @@
 #!/bin/bash
 : <<-LICENSE_BLOCK
-getAutoLogin (20210913) - Copyright (c) 2021 Joel Bruner (https://github.com/brunerd)
+getAutoLogin (20220610) - Copyright (c) 2021 Joel Bruner (https://github.com/brunerd)
 Licensed under the MIT License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -13,19 +13,19 @@ LICENSE_BLOCK
 # FUNCTIONS #
 #############
 
-#given a string from /etc/kcpassword will XOR it back and truncate padding
+#will XOR it back and truncate padding
 function kcpasswordDecode() (
 
 	#a string is passed
-	if [ -n "${1}" ]; then
-		#convert to hex representation with spaces
-		thisStringHex_array=( $(echo -n "${1}" | xxd -p -u | sed 's/../& /g') )
+	if [ -n "${1}" ] && [ ! -f "${1}" ]; then
+		echo "$(basename "$0"): ${1}: No such file" > /dev/stdout
+		exit 1
 	#file redirection changes the file descriptor
-	elif [ ! -t '0' ]; then
+	elif [ -f "${1}" ] || [ ! -t '0' ]; then
 		#convert to hex representation with spaces
-		thisStringHex_array=( $(xxd -p -u /dev/stdin | sed 's/../& /g') )
+		thisStringHex_array=( $(xxd -p -u "${1:-/dev/stdin}" | sed 's/../& /g') )
 	else
-		echo "No input." >/dev/stderr
+		echo "Specify a file path or provide redirected input" >/dev/stderr
 		exit 1
 	fi
 
@@ -43,7 +43,6 @@ function kcpasswordDecode() (
 		#take decimal value and printf convert to two char hex value
 		#use xxd to convert hex to ascii representation
 		decodedCharacter=$(printf "%02X" "$((0x${charHex_cipher} ^ 0x${charHex:-00}))")		
-		#echo "decodedCharacter: $decodedCharacter"
 
 		if [[ "${decodedCharacter}" = "00" ]]; then
 			break
@@ -52,6 +51,7 @@ function kcpasswordDecode() (
 		fi
 	done
 )
+
 ########
 # MAIN #
 ########
@@ -68,7 +68,7 @@ autoLoginUser=$(/usr/bin/defaults read /Library/Preferences/com.apple.loginwindo
 echo "Auto login user: ${autoLoginUser:-<NOT_SET>}"
 
 if [ -f /etc/kcpassword ]; then
-	echo "Password: $(kcpasswordDecode < /etc/kcpassword)"
+	echo "Password: $(kcpasswordDecode /etc/kcpassword)"
 else
 	echo "Password: <NOT_SET>"
 fi
