@@ -1,6 +1,6 @@
 #!/bin/bash
 : <<-LICENSE_BLOCK
-macOSCompatibility - a Jamf EA to report macOS compatibility with alternate output modes for TEXT or CSV output
+macOSCompatibility (20220624) - a Jamf EA to report macOS compatibility with alternate output modes for TEXT or CSV output
 Copyright (c) 2020 Joel Bruner (https://github.com/brunerd)
 Licensed under the MIT License
 
@@ -14,18 +14,20 @@ LICENSE_BLOCK
 macOSCompatibility [-c] [-v "<macOS Version List>"] [<ModelID>,...]
 	Without ModelID(s) returns Jamf EA style result: <result>11</result>
 Arguments: 
- -c for CSV output (includes header of versions)
+-c for CSV output (includes header of versions)
 	Otherwise if a Model is specified and -c is NOT used, the output with be TEXT
- -v "<macOS Version List>" a space delimted list of macOS versions like "10.14 10.15 11"
+-v "<macOS Version List>" a space delimted list of macOS versions like "10.14 10.15 11"
  	For versions to check in EA mode, edit the variable "versionsToCheck" with the versions
- ["<ModelID List>"] a space delimted list of ModelIDs to test, 
+["<ModelID List>"] a space delimted list of ModelIDs to test, 
  	Use "ALL" test against the ALL_MACS variable within this script
 	EA Mode is ONLY if Model ID is NOT specified
 
-For maximum fun: 
-./macOSCompatibility -c -v ALL ALL > ~/Desktop/macOSCompatibilityMatrix.csv
+For Maximum Fun: Create a CSV with all models and all versions. 
+QuickLook can view CSV if you don't have Numbers installed
 
-This will create a CSV with all models and all version (Quicklook does a fine job with CSV if you happen to not have Numbers installed)
+./macOSCompatibility.sh -c -v ALL ALL > ~/Desktop/macOSCompatibilityMatrix.csv
+
+
 USAGE
 
 #hold shoft down for xtrace output
@@ -43,12 +45,13 @@ commandKeyDown=$(osascript -l JavaScript -e "ObjC.import('Cocoa'); ($.NSEvent.mo
 
 #versions you want to test models against, space delimted
 #remove those you don't want to check on, add old or new ones you need to test
-versionsToCheck="10.13 10.14 10.15 11 12"
-#uncomment to always test against "all"
-#versionsToCheck="10.4 10.5 10.6 10.7 10.8 10.9 10.10 10.11 10.12 10.13 10.14 10.15 11"
+versionsToCheck="10.15 11 12 13"
 
-#if ALL is used for -v it will use this variable
-versionsToCheck_ALL="10.4 10.5 10.6 10.7 10.8 10.9 10.10 10.11 10.12 10.13 10.14 10.15 11 12"
+#uncomment to ALWAYS test against "all"
+#versionsToCheck="10.4 10.5 10.6 10.7 10.8 10.9 10.10 10.11 10.12 10.13 10.14 10.15 11 12 13"
+
+#option "-v ALL" will check for these OSes in the list
+versionsToCheck_ALL="10.4 10.5 10.6 10.7 10.8 10.9 10.10 10.11 10.12 10.13 10.14 10.15 11 12 13"
 
 #For determining support:
 #Macs: 
@@ -206,11 +209,20 @@ MacBook9,1
 MacBookAir7,1
 MacBookPro12,1
 Macmini7,1
+Mac13,1
 MacPro6,1
 VMWare12,2
 Parallels16,1"
 
-#macOS13_MIN_MAX_SUPPORTED=""
+macOS13_MIN_MAX_SUPPORTED="
+iMac18,1
+iMacPro1,1
+MacBook10,1
+MacBookAir8,1
+MacBookPro14,1
+Mac13,1
+Macmini8,1
+MacPro7,1"
 
 #NOTES:
 #When a new OS ships this must be updated AT LEAST with the MINIMUM REQUIRED HARDWARE to run the OS
