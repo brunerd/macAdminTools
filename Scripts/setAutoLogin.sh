@@ -1,6 +1,6 @@
 #!/bin/bash
 : <<-LICENSE_BLOCK
-setAutoLogin (20220610) - Copyright (c) 2021 Joel Bruner (https://github.com/brunerd)
+setAutoLogin (20220726) - Copyright (c) 2021 Joel Bruner (https://github.com/brunerd)
 Licensed under the MIT License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -12,7 +12,6 @@ LICENSE_BLOCK
 # VARIABLES #
 #############
 
-#this can be blank if that is the password, it will be verified
 USERNAME="${1}"
 
 #this can be blank if that is the password
@@ -70,15 +69,24 @@ if [ "${UID}" != 0 ]; then
 	exit 1
 fi
 
-#if we have a USERNAME
-if [ -n "${USERNAME}" ]; then 
+#special case for Guest account (case SENSITIVE)
+if [ "${USERNAME}" = "Guest" ]; then
+	#turn on Guest account 
+	sysadminctl -guestAccount on
+	#set auto-login
+	defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser Guest
 
-	#check user
+	echo "Auto login enabled for Guest"
+#if we have any other USERNAME
+elif [ -n "${USERNAME}" ]; then 
+
+	#check if user exists
 	if ! id "${USERNAME}" &> /dev/null; then
 		echo "User '${USERNAME}' not found, exiting."
 		exit 1
 	fi
-
+	
+	#check that the supplied password is valid
 	if ! /usr/bin/dscl /Search -authonly "${USERNAME}" "${PW}" &> /dev/null; then
 		echo "Invalid password for '${USERNAME}', exiting."
 		exit 1
@@ -87,15 +95,15 @@ if [ -n "${USERNAME}" ]; then
 	#encode password and write file 
 	kcpasswordEncode "${PW}" > /etc/kcpassword
 	
-	#ensure ownership and permissions (600)
+	#ensure ownership and permissions are correct (600)
 	chown root:wheel /etc/kcpassword
 	chmod u=rw,go= /etc/kcpassword
 
-	#turn on auto login
+	#turn on auto login for the user
 	/usr/bin/defaults write /Library/Preferences/com.apple.loginwindow autoLoginUser -string "${USERNAME}"
 	echo "Auto login enabled for '${USERNAME}'"
 
-#if not USERNAME turn OFF
+#if no USERNAME, turn auto-login OFF
 else
 	[ -f /etc/kcpassword ] && rm -f /etc/kcpassword
 	/usr/bin/defaults delete /Library/Preferences/com.apple.loginwindow autoLoginUser &> /dev/null
