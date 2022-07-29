@@ -1,6 +1,6 @@
 #!/bin/bash
 : <<-LICENSE_BLOCK
-getAutoLogin (20220610) - Copyright (c) 2021 Joel Bruner (https://github.com/brunerd)
+getAutoLogin (20220729) - Copyright (c) 2021 Joel Bruner (https://github.com/brunerd)
 Licensed under the MIT License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -15,18 +15,31 @@ LICENSE_BLOCK
 
 #will XOR it back and truncate padding
 function kcpasswordDecode() (
-
-	#a string is passed
-	if [ -n "${1}" ] && [ ! -f "${1}" ]; then
-		echo "$(basename "$0"): ${1}: No such file" > /dev/stdout
+	filepath="${1}"
+	#no file
+	if [ -z "${filepath}" ]; then
+		[ ! -t '0' ] && echo "Redirected input no longer supported" >/dev/stderr
+		echo "Please specify a file path" >/dev/stderr
 		exit 1
-	#file redirection changes the file descriptor
-	elif [ -f "${1}" ] || [ ! -t '0' ]; then
-		#convert to hex representation with spaces
-		thisStringHex_array=( $(xxd -p -u "${1:-/dev/stdin}" | sed 's/../& /g') )
+	#bad file
+	elif [ ! -f "${filepath}" ]; then
+		echo "$(basename "$0"): ${filepath}: No such file" >/dev/stderr
+		exit 1
+	#file
 	else
-		echo "Specify a file path or provide redirected input" >/dev/stderr
-		exit 1
+		#test for type of data
+		case "$(file -b "${filepath}")" in
+			#ventura now encodes kcpassword as a hex representation in ASCII 
+			"ASCII text")
+				#just space out the ASCII data into 2 byte couplets
+				thisStringHex_array=( $(sed 's/../& /g' "${filepath}") )
+				;;
+			#otherwise treat as binary data
+			*)
+				#convert to hex representation with spaces
+				thisStringHex_array=( $(xxd -p -u "${filepath}" | sed 's/../& /g') )
+			;;
+		esac
 	fi
 
 	#macOS cipher hex ascii representation array
