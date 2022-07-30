@@ -29,7 +29,7 @@ function kcpasswordDecode() (
 	else
 		#test for type of data
 		case "$(file -b "${filepath}")" in
-			#ventura now encodes kcpassword as a hex representation in ASCII 
+			#in some cases the kcpassword may be a hex representation in ASCII (10.10+)
 			"ASCII text")
 				#just space out the ASCII data into 2 byte couplets
 				thisStringHex_array=( $(sed 's/../& /g' "${filepath}") )
