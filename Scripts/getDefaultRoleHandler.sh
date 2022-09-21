@@ -48,7 +48,7 @@ function getDefaultRoleHandler() (
 				#error
 				return 1
 			else
-				#success success
+				#success
 				return 0
 			fi
 		fi
