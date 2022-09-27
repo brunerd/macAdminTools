@@ -2,7 +2,6 @@
 : <<-LICENSE_BLOCK
 iCloud Private Relay Status Checker - (https://github.com/brunerd)
 Copyright (c) 2022 Joel Bruner (https://github.com/brunerd)
-Other portions: Copyright (c) 2007 Stefan Goessner (goessner.net), Copyright (c) 2020 "jpaquit" (https://github.com/jpaquit), Copyright (c) 2016 Kris Nye, Copyright (c) 2012 Dharmafly, Copyright (c) Kyle Simpson
 Licensed under the MIT License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
