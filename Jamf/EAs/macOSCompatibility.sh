@@ -1,6 +1,6 @@
 #!/bin/bash
 : <<-LICENSE_BLOCK
-macOSCompatibility (20220624) - a Jamf EA to report macOS compatibility with alternate output modes for TEXT or CSV output
+macOSCompatibility (20221010) - a Jamf EA to report macOS compatibility with alternate output modes for TEXT or CSV output
 Copyright (c) 2020 Joel Bruner (https://github.com/brunerd)
 Licensed under the MIT License
 
@@ -16,8 +16,8 @@ macOSCompatibility [-c] [-v "<macOS Version List>"] [<ModelID>,...]
 Arguments: 
 -c for CSV output (includes header of versions)
 	Otherwise if a Model is specified and -c is NOT used, the output with be TEXT
--v "<macOS Version List>" a space delimted list of macOS versions like "10.14 10.15 11"
- 	For versions to check in EA mode, edit the variable "versionsToCheck" with the versions
+-v "<macOS Version List>" a space delimted list of macOS versions like "10.14 10.15 11" or "ALL"
+ 	Edit the variable "versionsToCheck" with the desired versions for use in extension attributes (jamf) or similar
 ["<ModelID List>"] a space delimted list of ModelIDs to test, 
  	Use "ALL" test against the ALL_MACS variable within this script
 	EA Mode is ONLY if Model ID is NOT specified
@@ -267,6 +267,13 @@ iMac20,2
 iMac21,1
 iMac21,2
 iMacPro1,1
+#Mac studio
+Mac13,1
+Mac13,2
+#MacBook Air M2 2022
+Mac14,2
+#MacBook Pro M2 2022
+Mac14,7
 MacBook1,1
 MacBook2,1
 MacBook3,1
@@ -464,6 +471,7 @@ function checkCompatbility
 
 	#get the line with the models, then store MIN/MAX values in an array
 	local versionToTest_myModelArray=( $(grep "^${myModel_Name}[[:digit:]]" <<< "$(eval echo \"\$macOS${_versionToTest}_MIN_MAX_SUPPORTED\")") )
+	#local versionToTest_myModelArray=( $(grep "^${myModel_Name}${myModel_Major}" <<< "$(eval echo \"\$macOS${_versionToTest}_MIN_MAX_SUPPORTED\")") )
 
 	#get the MINIMUM models from our family for the version we are checking
 	local versionMyModelID_MIN=${versionToTest_myModelArray[0]}
