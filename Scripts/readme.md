@@ -16,6 +16,8 @@ Here's some useful scripts:
 
 `getSupportedMacOSVersions_SWU.sh` -  gets supported macOS versions using softwareupdate
 
+`hexencode.sh` - \\x hex encode Unicode characters to avoid mangling in Jamf scripts
+
 `iCloudDriveDesktopSync_func min.sh` - minified version
 
 `iCloudDriveDesktopSync_func.sh` - function to get status of iCloud Desktop Sync status (on or off)
