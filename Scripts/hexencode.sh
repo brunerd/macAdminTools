@@ -48,7 +48,7 @@ function hexencode()(
 			$'\r')if ((${flag_e}));then echo -n '\r';continue; elif ! ((${flag_a}));then echo -n $'\r';continue;fi ;;
 			$'\t')if ((${flag_e}));then echo -n '\t';continue; elif ! ((${flag_a}));then echo -n $'\t';continue;fi ;;
 			$'\v')if ((${flag_e}));then echo -n '\v';continue; elif ! ((${flag_a}));then echo -n $'\v';continue;fi ;;
-			'\') echo -n '\\\\';continue; ;;
+			'\') echo -n '\\';continue; ;;
 		esac
 		
 		#if -a (all) or outside printable ASCII range (less than 0x20 or greater than 0x7E) encode
