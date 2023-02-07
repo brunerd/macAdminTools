@@ -1,5 +1,5 @@
 #!/bin/bash
-#!/bin/zsh
+
 #works in either
 : <<-LICENSE_BLOCK
 hexencode - Copyright (c) 2023 Joel Bruner (https://github.com/brunerd/macAdminTools)
@@ -13,15 +13,20 @@ LICENSE_BLOCK
 # \x escapes a string, by default ONLY encodes control characters < 0x20 and multi-byte Unicode > 0x7F
 # Input: takes string as an argument or will use file redirection (<), "here string" (<<<), or "here doc" (<<)
 # Output options: [-a] encode all characters, [-e] escape format chars in ANSI C-style \b \f \n \r \t \v (overrides -a)
-# The output can be reconstituted using echo -e "<string>" or echo $'<string>' (<-although watch out for unescaped single quotes)
+# The output can be reconstituted using echo -e "<string>" or echo -e '<string>' use -d for double quotes and -s for single respecitvely
 # Example: echo -e "\xF0\x9F\xA4\x93" or echo $'\xF0\x9F\xA4\x93' will produce U+1F913 "smiling face with glasses"
 
 function hexencode()(
-	while getopts ":ahe" option; do
+
+	function printHelp()(echo -e "hexencode \$ [-a] [-e] [-d|-s] [\"<string>\"]|[< <filepath>]|[<<< \"here string\"]|[<<HERDOC]\nOutput Options:\n\t-a encode ALL characters\n\t-e escape format chars (overriding -a) in C-style: \\\\b \\\\f \\\\n \\\\r \\\\t \\\\v\n\t-d escape for use in echo -e \"<output>\" (double quotes) [DEFAULT]\n\t-s escape for use in echo -e '<output>' (single quotes)")
+
+	while getopts ":aheosd" option; do
 		case "${option}" in
 			'a')flag_a=1;;
 			'e')flag_e=1;;
-			'h')echo -e "hexencode [-a] [-e] [\"<string>\"]|[< <filepath>]|[<<< \"here string\"]|[<<HERDOC]\nOptions:\n\t-a encode ALL characters\n\t-e escape format chars (overriding -a) in C-style: \\\\b \\\\f \\\\n \\\\r \\\\t \\\\v"
+			'o')flag_o=1;;
+			'h')printHelp;exit 0;;
+			'd'|'s') quotingType="${option}";;
 		esac
 	done
 	#shift if we had args so $1 is our string
@@ -29,10 +34,29 @@ function hexencode()(
 
 	#if no string for argument 
 	if [ -z "${1}" ]; then 
-		#if no redirected input either thenreturn
-		#otherwise set $1 to contents of redirected input
-		[ -t '0' ] && return || set -- "$(cat)"
+		#set $1 to contents of redirected input
+		if [ -f /dev/stdin ]; then
+			set -- "$(< /dev/stdin)"
+		#set $1 to piped input to cat
+		elif [ ! -t '0' ]; then
+			set -- "$(cat)";
+		#nothing print help
+		else
+			printHelp
+		fi
 	fi
+
+	case "${quotingType}" in
+		#for use in single quotes: echo -e '<output>'
+		's')
+			singleQuote_esc=$'\'\\\'\''
+		;;
+		#for use in double quotes: echo -e "<output>"
+		*)
+			esc='\'
+			exclamation_esc='"\!"'
+		;;
+	esac
 
 	#get length (use -m for multibyte Unicode chars NOT -c byte count)
 	length=$(($(echo -n "${1}" | wc -m)))
@@ -48,7 +72,13 @@ function hexencode()(
 			$'\r')if ((${flag_e}));then echo -n '\r';continue; elif ! ((${flag_a}));then echo -n $'\r';continue;fi ;;
 			$'\t')if ((${flag_e}));then echo -n '\t';continue; elif ! ((${flag_a}));then echo -n $'\t';continue;fi ;;
 			$'\v')if ((${flag_e}));then echo -n '\v';continue; elif ! ((${flag_a}));then echo -n $'\v';continue;fi ;;
-			'\') echo -n '\\';continue; ;;
+			#process these special characters depending if the output is single (-s) or double (-d) quotes
+			'\') ! ((${flag_a})) && { echo -n "${esc}${esc}"'\\';continue; } ;;
+			"'") ! ((${flag_a})) && { echo -n ${singleQuote_esc:=\'};continue; } ;;
+			'"') ! ((${flag_a})) && { echo -n "${esc}\"";continue; } ;;
+			'$') ! ((${flag_a})) && { echo -n "${esc}\$";continue; } ;;
+			'`') ! ((${flag_a})) && { echo -n "${esc}\`";continue; } ;;
+			'!') ! ((${flag_a})) && { echo -n "${exclamation_esc:=!}";continue; } ;;
 		esac
 		
 		#if -a (all) or outside printable ASCII range (less than 0x20 or greater than 0x7E) encode
