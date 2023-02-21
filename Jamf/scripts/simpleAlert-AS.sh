@@ -3,11 +3,13 @@
 #Licensed under the MIT License
 
 #Simple Applescript alert dialog for Jamf - just a title, a message and an OK button
-#Accepts \x escaped UTF-8 encoded characters (since the default Jamf db character set mangles 4 byte Unicode)
-#Use hexencode.sh, also in my github, to encode your strings/files
+#Accepts hex (\xnn) and octal (\0nnn) escaped UTF-8 encoded characters (since the default Jamf db character set mangles 4 byte Unicode)
+#Use shef to encode your strings/files for use in this script: https://github.com/brunerd/shef
 
 #function to interpret the escapes and fixup characters that can screw up Applescript if unescaped \ and "
 function interpretEscapesFixBackslashesAndQuotes()(echo -e "${@}" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
+
+#function interpretEscapesFixBackslashesAndQuotes()(echo -e "$(sed -e 's/\\/\\\\/g' <<< "${@}")" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')
 
 #fix up our inputs
 message=$(interpretEscapesFixBackslashesAndQuotes "${4}")
