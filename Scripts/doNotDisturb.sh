@@ -1,5 +1,5 @@
 #!/bin/bash
-#doNotDisturb (grep) (20220227) Copyright (c) 2022 Joel Bruner (https://github.com/brunerd)
+#doNotDisturb (grep) (20230623) Copyright (c) 2022 Joel Bruner (https://github.com/brunerd)
 #Licensed under the MIT License
 
 #An example of detecting Do Not Disturb (macOS 10.13-12)
@@ -16,7 +16,7 @@ function doNotDisturb()(
 		dndStatus="$(launchctl asuser ${consoleUserID} sudo -u ${consoleUser} defaults -currentHost read com.apple.notificationcenterui doNotDisturb 2>/dev/null)"
 
 		#eval c-style boolean and return shell style value
-		[ "${dndStatus}" = "1" ] && return 0 || return 1
+		((dndStatus)) && return 0 || return 1
 	#this only works for macOS 11 - macOS12 does not affect any of the settings in com.apple.ncprefs
 	elif [ "${OS_major}" = "11" ]; then
 		#returns "true" or [blank]
