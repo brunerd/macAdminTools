@@ -2,7 +2,7 @@
 #doNotDisturb (grep) (20230623) Copyright (c) 2022 Joel Bruner (https://github.com/brunerd)
 #Licensed under the MIT License
 
-#An example of detecting Do Not Disturb (macOS 10.13-12)
+#An example of detecting Do Not Disturb (macOS 10.13-14)
 
 function doNotDisturb()(
 
