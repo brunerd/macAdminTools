@@ -9,6 +9,8 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 LICENSE_BLOCK
 
+#Note: Apple's new model ID scheme has made this script pretty much untennable
+#See my post https://www.brunerd.com/blog/2022/12/09/determining-eligible-macos-versions-via-script/ for replacements that use other mechanisms (that don't require manual updating)
 
 : <<-USAGE
 macOSCompatibility [-c] [-v "<macOS Version List>"] [<ModelID>,...]
@@ -26,8 +28,6 @@ For Maximum Fun: Create a CSV with all models and all versions.
 QuickLook can view CSV if you don't have Numbers installed
 
 ./macOSCompatibility.sh -c -v ALL ALL > ~/Desktop/macOSCompatibilityMatrix.csv
-
-
 USAGE
 
 #hold shoft down for xtrace output
