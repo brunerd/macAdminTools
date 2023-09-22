@@ -1,4 +1,14 @@
 #!/bin/bash
+
+## DEPRECATION NOTICE ##
+# Note: Apple's new generic "Macxx,xx" Model ID scheme made this script way more annoying to update
+# So instead I made replacements EAs that don't require manual updating!
+# See my post https://www.brunerd.com/blog/2022/12/09/determining-eligible-macos-versions-via-script/ 
+# They live here: https://github.com/brunerd/macAdminTools/edit/main/Jamf/EAs
+# One that uses Apple Software Update Service (ASLS) and another that uses Software Update - take your pick
+# Both methods will only "see" new macOS on day it released and thereafter, there is no "forecasting" ability
+## DEPRECATION NOTICE ##
+
 : <<-LICENSE_BLOCK
 macOSCompatibility (20221010) - a Jamf EA to report macOS compatibility with alternate output modes for TEXT or CSV output
 Copyright (c) 2020 Joel Bruner (https://github.com/brunerd)
@@ -9,8 +19,6 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 LICENSE_BLOCK
 
-#Note: Apple's new model ID scheme has made this script pretty much untennable
-#See my post https://www.brunerd.com/blog/2022/12/09/determining-eligible-macos-versions-via-script/ for replacements that use other mechanisms (that don't require manual updating)
 
 : <<-USAGE
 macOSCompatibility [-c] [-v "<macOS Version List>"] [<ModelID>,...]
