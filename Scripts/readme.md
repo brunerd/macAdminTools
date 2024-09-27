@@ -10,6 +10,8 @@ Here's some useful scripts:
 
 `getDefaultRoleHandler.sh` - given a URL scheme, interrogates the console user's LaunchServices plist for a handler bundle id
 
+`getPrivateMACAddressMode.sh` - a human readable output of the per-SSID Private MAC Address settings introduced in macOS Sequoia
+
 `getSupportedMacOSVersions_ASLS-legacy.sh` - gets supported macOS versions using Apple Software Lookup Service (work on Big Sur and under)
 
 `getSupportedMacOSVersions_ASLS.sh` - gets supported macOS versions using Apple Software Lookup Service (Monterey+)
