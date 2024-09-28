@@ -107,7 +107,8 @@ if [ -z "${SSIDS}" ]; then
 	#get network SSID (can take hella long time ~6s but Sequoia broke networksetup -getairportnetwork method)
 	#https://snelson.us/2024/09/determining-a-macs-ssid-like-an-animal/
 	#jamflog "Getting SSID..."
-	SSIDS=$(system_profiler -detailLevel basic SPAirPortDataType | awk '/Current Network Information:/ { getline; print substr($0, 13, (length($0) - 13)); exit }')
+	currrent_SSID=$(system_profiler -detailLevel basic SPAirPortDataType | awk '/Current Network Information:/ { getline; print substr($0, 13, (length($0) - 13)); exit }')
+	SSIDS="${currrent_SSID}"
 fi
 
 #if still blank, bail
@@ -118,7 +119,7 @@ fi
 
 #finally go through one or more SSIDs
 IFS="$delimiter"
-for SSID in $SSIDS; do
+for SSID in ${SSIDS}; do
 	setSSID "${SSID}"
 	#keep tally for zero/non-zero exit code
 	exitCode=$(($? + exitCode))	
