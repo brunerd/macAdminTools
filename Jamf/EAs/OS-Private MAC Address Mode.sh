@@ -4,7 +4,7 @@
 #Possible values of PrivateMACAddressModeUserSetting are: off, static, rotating, or NOT_SET
 
 : <<-LICENSE_BLOCK
-`OS-Private MAC Address Mode` Copyright (c) 2024 Joel Bruner (https://github.com/brunerd)
+OS-Private MAC Address Mode Copyright (c) 2024 Joel Bruner (https://github.com/brunerd)
 Licensed under the MIT License
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
@@ -44,9 +44,10 @@ function getModeForSSID(){
 ########
 
 #if none, autodetect
-if [ -z "${SSIDS}" ]; then
+if [ -z "${SSIDS}" ] && [ -e "/Library/Preferences/com.apple.wifi.known-networks.plist" ]; then
 	#get all known networks
-	SSIDS=$(defaults export /Library/Preferences/com.apple.wifi.known-networks.plist - | xmllint --xpath "/plist/dict/key/text()" /dev/stdin | sed "s/^wifi\.network\.ssid\.//g")
+	KNOWN_SSIDS=$(defaults export /Library/Preferences/com.apple.wifi.known-networks.plist - | xmllint --xpath "/plist/dict/key/text()" /dev/stdin | sed "s/^wifi\.network\.ssid\.//g")
+	SSIDS="${KNOWN_SSIDS}"
 fi
 
 #finally go through one or more SSIDs
