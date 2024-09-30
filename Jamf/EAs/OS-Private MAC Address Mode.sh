@@ -43,8 +43,11 @@ function getModeForSSID(){
 # MAIN #
 ########
 
-#if none, autodetect
-if [ -z "${SSIDS}" ] && [ -e "/Library/Preferences/com.apple.wifi.known-networks.plist" ]; then
+#exit quickly if plist does not exist
+! [ -e "/Library/Preferences/com.apple.wifi.known-networks.plist" ] && { echo "<result>${result}</result>"; exit; } 
+
+#if nothing specified, use SSIDs already known
+if [ -z "${SSIDS}" ]; then
 	#get all known networks
 	KNOWN_SSIDS=$(defaults export /Library/Preferences/com.apple.wifi.known-networks.plist - | xmllint --xpath "/plist/dict/key/text()" /dev/stdin | sed "s/^wifi\.network\.ssid\.//g")
 	SSIDS="${KNOWN_SSIDS}"
