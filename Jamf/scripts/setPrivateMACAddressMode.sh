@@ -1,7 +1,10 @@
 #!/bin/bash
-#setPrivateMACAddressMode - set the MAC private address mode (randomization) for the curent or specified WiFi SSID
-#Note: Change does not take affect until after restart (or an upgrade) unless someone knows a clever `kill -HUP`
-#Sonoma and under: Can be used to prevent MAC randomization after upgrade to Sequoia
+#setPrivateMACAddressMode - set the mode of macOS Sequoia's Private Address mode (aka MAC randomization) for the curent or specified WiFi SSID
+#Notes: 
+#1) Sonoma and under: Can be used to prevent MAC randomization upon upgrade to Sequoia, has no effect before upgrade to Sequoia
+#2) Sequoia and up: Changes reliably take effect after restart... for the brave, set restartWiFi_HC="1" do this without reboot
+#3) All macOS versions: Deploying a config profile with a Wi-Fi payload will rewrite all data for an SSID in com.apple.wifi.known-networks
+
 #See Jamf Extension Attribute `OS-Private MAC Address Mode` for reporting and Smart Group usage
 
 : <<-LICENSE_BLOCK
@@ -27,6 +30,12 @@ SSIDS="${5:-$SSIDS_HC}"
 #default delimiter for possible SSID list is comma, hardcode or specify otherwise
 delimiter_HC=$','
 delimiter="${6:-$delimiter_HC}"
+
+#Restart Wi-Fi - causes the changes to take effect without reboot BUT you better make sure your Wi-Fi reconnects
+#0=off, 1=on
+restartWiFi_HC="0"
+#how long to wait after powering WiFi back up to report on MAC address, 7 seems good, 5 is cutting close?
+reconnectWaitSec="7"
 
 #############
 # FUNCTIONS #
@@ -57,12 +66,12 @@ function systemCheck(){
 
 	case "${mode}" in
 		"off"|"static"|"rotating"):;;
-		*)jamflog "Invalid mode: $mode, exiting";exit 1;;
+		*)jamflog "[ERROR] Invalid mode: $mode, exiting";exit 1;;
 	esac
 }
 
 #this will overide MDM DisableAssociationMACRandomization even if set to TRUE, although when profile applied will remove this value from plist but can be re-added
-function setSSID(){
+function setSSIDMode(){
 	#bail if SSID never joined, creating a single keyed entry will royally screw up WiFi
 	if ! /usr/libexec/PlistBuddy -c "print :wifi.network.ssid.'${SSID}'" /Library/Preferences/com.apple.wifi.known-networks.plist 2>/dev/null 1>&2; then
 		jamflog "[ERROR] SSID: ${SSID} never joined, skipping"
@@ -72,29 +81,72 @@ function setSSID(){
 	#get current mode from com.apple.wifi.known-networks, possible values are: off, static, rotating
 	local PrivateMACAddressMode=$(/usr/libexec/PlistBuddy -c "print :wifi.network.ssid.'${SSID}':PrivateMACAddressModeUserSetting" /Library/Preferences/com.apple.wifi.known-networks.plist 2>/dev/null)
 	
+	#bail if change not needed
+	if [ "${PrivateMACAddressMode}" = "${mode}" ]; then
+		jamflog "[INFO] SSID \"$SSID\" already set to \"$mode\", no change"
+		return 0
+	fi
+	
+
+	#make sure nothing cached gets written back if System Settings is open
+	pgrep -x -q "System Settings" && { jamflog "[INFO] Closing System Settings" ; killall "System Settings"; sleep .5; }
+
 	#if nothing found then use add method
 	if [ -z "${PrivateMACAddressMode}" ] ; then
 		/usr/libexec/PlistBuddy -c "add :wifi.network.ssid.'${SSID}':PrivateMACAddressModeUserSetting string ${mode}" /Library/Preferences/com.apple.wifi.known-networks.plist
-	#bail if change not needed
-	elif [ "${PrivateMACAddressMode}" = "${mode}" ]; then
-		jamflog "[INFO] SSID \"$SSID\" already set to \"$mode\", no change"
-		return 0
 	#use set for existing key
-	else 
+	else		
+		#write the change
 		/usr/libexec/PlistBuddy -c "set :wifi.network.ssid.'${SSID}':PrivateMACAddressModeUserSetting ${mode}" /Library/Preferences/com.apple.wifi.known-networks.plist
 	fi
 	local exitCode=$?
-	
+
 	#any non-zero code
 	if ((exitCode)); then
 		jamflog "[ERROR] code: $exitCode trying to set MAC Address mode for SSID \"${SSID}\" to \"$mode\""
 	else
-		jamflog "SSID \"${SSID}\" set to \"$mode\" MAC address mode"
+		jamflog "[INFO] SSID \"${SSID}\" set to \"$mode\" MAC address mode"
+	fi
+	
+	#knock the juke box fonzy style if restsartWiFi=1 and this is Sequoia and up
+	if ((restartWiFi_HC)) && [ $(sw_vers -productVersion | cut -d. -f1) -ge 15 ]; then
+		jamflog "[INFO] Restart Wi-Fi enabled: restarting cfprefsd, airportd"
+		#get actual network interface (usually en0)
+		networkInterface_WiFi=$(networksetup -listallhardwareports | grep -A1 "Hardware Port: Wi-Fi" | awk -F ': ' '/Device:/{print $2}')
+		MAC_before="$(getWiFiMACAddress ${networkInterface_WiFi})"
+		jamflog "[INFO] MAC Address (${networkInterface_WiFi:=en0}) before: ${MAC_before}"
+		#make sure the defaults system is on the same page since we used PlistBuddy
+		killall cfprefsd; sleep .5
+		#this will make the airport toolbar and System Settings aware of the change but _MAC is still randomized_
+		killall airportd; sleep .5
+		jamflog "[INFO] Powering down Wi-Fi (${networkInterface_WiFi})"
+		#down the interface
+		networksetup -setairportpower "${networkInterface_WiFi}" off; sleep 1
+		jamflog "[INFO] Powering up Wi-Fi (${networkInterface_WiFi}) and waiting ${reconnectWaitSec} seconds..."
+		#up the interface
+		networksetup -setairportpower "${networkInterface_WiFi}" on
+		#we really don't know if we will reconnect or how it could take but let's wait a smidge and see
+		sleep "${reconnectWaitSec}"
+		#if we are active let's see what the MAC is (it doesn't change until it connects to WiFi again)
+		if [ "$(ifconfig ${networkInterface_WiFi} | awk -F ': ' '/status/{print $2}')" = "active" ]; then
+			MAC_after="$(getWiFiMACAddress ${networkInterface_WiFi})"
+			if [ "${MAC_before}" != "${MAC_after}" ]; then
+				jamflog "[INFO] SUCCESS! MAC Address (${networkInterface_WiFi}) after: ${MAC_after}"
+			else
+				jamflog "[ERROR] MAC Address (${networkInterface_WiFi}) unchanged after: ${MAC_after}"
+			fi
+		else
+			jamflog "[WARN] ${networkInterface_WiFi} did not reconnect after wating ${reconnectWaitSec} seconds"
+		fi
 	fi
 
 	return $exitCode
 }
 
+function getWiFiMACAddress(){
+	local interface="${1:-en0}"
+	ifconfig "${interface}" 2>/dev/null | grep ether | cut -d ' ' -f2
+}
 
 ########
 # MAIN #
@@ -124,7 +176,7 @@ fi
 #finally go through one or more SSIDs
 IFS="${delimiter}"
 for SSID in ${SSIDS}; do
-	setSSID "${SSID}"
+	setSSIDMode "${SSID}"
 	#keep tally for zero/non-zero exit code
 	exitCode=$(($? + exitCode))	
 done
