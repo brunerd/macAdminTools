@@ -87,9 +87,9 @@ function setSSID(){
 	
 	#any non-zero code
 	if ((exitCode)); then
-		jamflog "[ERROR] code: $exitCode trying to set MAC Address mode for SSID \"$SSID\" to \"$mode\""
+		jamflog "[ERROR] code: $exitCode trying to set MAC Address mode for SSID \"${SSID}\" to \"$mode\""
 	else
-		jamflog "SSID \"$SSID\" set to \"$mode\" MAC address mode"
+		jamflog "SSID \"${SSID}\" set to \"$mode\" MAC address mode"
 	fi
 
 	return $exitCode
@@ -104,10 +104,14 @@ systemCheck
 
 #if not supplied use the current SSID
 if [ -z "${SSIDS}" ]; then
-	#get network SSID (can take hella long time ~6s but Sequoia broke networksetup -getairportnetwork method)
-	#https://snelson.us/2024/09/determining-a-macs-ssid-like-an-animal/
 	#jamflog "Getting SSID..."
-	currrent_SSID=$(system_profiler -detailLevel basic SPAirPortDataType | awk '/Current Network Information:/ { getline; print substr($0, 13, (length($0) - 13)); exit }')
+	#get the SSID _quickly_
+	currrent_SSID=$(ipconfig getsummary en0 | awk -F ' SSID : ' '/ SSID : / {print $2}')
+
+	#one more attempt to get network SSID (in case en0 wasn't our WiFi), this can take hella long time ~6s but Sequoia broke `networksetup -getairportnetwork method` - https://snelson.us/2024/09/determining-a-macs-ssid-like-an-animal/
+	[ -z "${currrent_SSID}" ] && currrent_SSID=$(system_profiler -detailLevel basic SPAirPortDataType | awk '/Current Network Information:/ { getline; print substr($0, 13, (length($0) - 13)); exit }')
+
+
 	SSIDS="${currrent_SSID}"
 fi
 
@@ -118,7 +122,7 @@ if [ -z "${SSIDS}" ]; then
 fi
 
 #finally go through one or more SSIDs
-IFS="$delimiter"
+IFS="${delimiter}"
 for SSID in ${SSIDS}; do
 	setSSID "${SSID}"
 	#keep tally for zero/non-zero exit code
