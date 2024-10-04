@@ -108,7 +108,7 @@ function setSSIDMode(){
 		jamflog "[INFO] SSID \"${SSID}\" set to \"$mode\" MAC address mode"
 	fi
 	
-	#knock the juke box fonzy style if restsartWiFi=1 and this is Sequoia and up
+	#knock the juke box fonzy style (actually thanks MacAdmins @boberito) if restsartWiFi=1 and this is Sequoia and up
 	if ((restartWiFi_HC)) && [ $(sw_vers -productVersion | cut -d. -f1) -ge 15 ]; then
 		jamflog "[INFO] Restart Wi-Fi enabled: restarting cfprefsd, airportd"
 		#get actual network interface (usually en0)
