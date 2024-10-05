@@ -1,8 +1,8 @@
 #!/bin/bash
-#setPrivateMACAddressMode - set the mode of macOS Sequoia's Private Address mode (aka MAC randomization) for the curent or specified WiFi SSID
+#setPrivateMACAddressMode (20241005) - set the mode of macOS Sequoia's Private Address mode (aka MAC randomization) for the curent or specified WiFi SSID
 #Notes: 
 #1) Sonoma and under: Can be used to prevent MAC randomization upon upgrade to Sequoia, has no effect before upgrade to Sequoia
-#2) Sequoia and up: Changes reliably take effect after restart... for the brave, set restartWiFi_HC="1" do this without reboot
+#2) Sequoia and up: Changes reliably take effect after restart or set restartWiFi_HC="1" do this without reboot (toggles Airport power make sure it reconnects!)
 #3) All macOS versions: Deploying a config profile with a Wi-Fi payload will rewrite all data for an SSID in com.apple.wifi.known-networks
 
 #See Jamf Extension Attribute `OS-Private MAC Address Mode` for reporting and Smart Group usage
@@ -19,23 +19,25 @@ LICENSE_BLOCK
 #############
 #use Jamf script parameters or hardcode (HC) for other MDMs
 
-#the randomization mode (PrivateMACAddressModeUserSetting): empty/default is "off", other values: "static" (Fixed), "rotating"
-mode_HC="off"
-mode="${4:-$mode_HC}"
+#the randomization mode (PrivateMACAddressModeUserSetting): hardcoded default is "off", or specify as Script parameter 4 with values: "static" (Fixed), "rotating"
+MODE_HC="off"
+MODE="${4:-$MODE_HC}"
 
-#specify multiple SSIDs, if none specified will use current Wi-Fi SSID 
+#specify multiple SSIDs, comma delimited (or see below), Hardcode or specify as Script parameter 5. If empty will use current Wi-Fi SSID
 SSIDS_HC=""
 SSIDS="${5:-$SSIDS_HC}"
 
-#default delimiter for possible SSID list is comma, hardcode or specify otherwise
+#default delimiter for SSID list is comma , change if your SSIDs contain commas. Hardcode or specify as Script parameter 6
 delimiter_HC=$','
 delimiter="${6:-$delimiter_HC}"
 
-#Restart Wi-Fi - causes the changes to take effect without reboot BUT you better make sure your Wi-Fi reconnects
+#Restart Wi-Fi causes the changes to take effect without reboot BUT you better make sure your Wi-Fi reconnects, toggles "Airport power"
 #0=off, 1=on
 restartWiFi_HC="0"
+restartWiFi="${7:-$restartWiFi_HC}"
 #how long to wait after powering WiFi back up to report on MAC address, 7 seems good, 5 is cutting close?
 reconnectWaitSec="7"
+
 
 #############
 # FUNCTIONS #
@@ -64,52 +66,65 @@ function jamflog(){
 function systemCheck(){
 	[ $UID != 0 ] && { echo "Run as root"; exit 1; }
 
-	case "${mode}" in
+	case "${MODE}" in
 		"off"|"static"|"rotating"):;;
-		*)jamflog "[ERROR] Invalid mode: $mode, exiting";exit 1;;
+		*)jamflog "[ERROR] Invalid mode \"${MODE}\", choose: off/static/rotating, exiting";exit 1;;
 	esac
 }
 
 #this will overide MDM DisableAssociationMACRandomization even if set to TRUE, although when profile applied will remove this value from plist but can be re-added
-function setSSIDMode(){
+function setPrivateAddressModebySSID(){ # <SSID> <Mode> <Restart Wi-Fi>
+
+	local ssid="${1}"
+	local mode="${2}" #off,static,rotating
+	local restartWiFi="${3}" #0=no restart,1=restart wifi on macos 14+
+
+	local plistPath="/Library/Preferences/com.apple.wifi.known-networks.plist"
+
+	#should already be sanity checked, silently return if not
+	([ -z "${ssid}" ] || [ -z "${mode}" ]) && return
+	
 	#bail if SSID never joined, creating a single keyed entry will royally screw up WiFi
-	if ! /usr/libexec/PlistBuddy -c "print :wifi.network.ssid.'${SSID}'" /Library/Preferences/com.apple.wifi.known-networks.plist 2>/dev/null 1>&2; then
-		jamflog "[ERROR] SSID: ${SSID} never joined, skipping"
+	if ! /usr/libexec/PlistBuddy -c "print :wifi.network.ssid.'${ssid}'" "${plistPath}" 2>/dev/null 1>&2; then
+		jamflog "[ERROR] SSID: ${ssid} never joined, skipping"
 		return 1
 	fi
 	
 	#get current mode from com.apple.wifi.known-networks, possible values are: off, static, rotating
-	local PrivateMACAddressMode=$(/usr/libexec/PlistBuddy -c "print :wifi.network.ssid.'${SSID}':PrivateMACAddressModeUserSetting" /Library/Preferences/com.apple.wifi.known-networks.plist 2>/dev/null)
+	local PrivateMACAddressMode=$(/usr/libexec/PlistBuddy -c "print :wifi.network.ssid.'${ssid}':PrivateMACAddressModeUserSetting" "${plistPath}" 2>/dev/null)
 	
-	#bail if change not needed
+	#note if change not needed
 	if [ "${PrivateMACAddressMode}" = "${mode}" ]; then
-		jamflog "[INFO] SSID \"$SSID\" already set to \"$mode\", no change"
-		return 0
+		jamflog "[INFO] SSID \"$ssid\" already set to \"${mode}\""
+		#once is never enough?
+		local again=" (again)"
 	fi
-	
 
-	#make sure nothing cached gets written back if System Settings is open
+	#make sure nothing cached gets written back if System Settings is already open pane (it can happen)
 	pgrep -x -q "System Settings" && { jamflog "[INFO] Closing System Settings" ; killall "System Settings"; sleep .5; }
 
-	#if nothing found then use add method
+	#if no value found found then use add method
 	if [ -z "${PrivateMACAddressMode}" ] ; then
-		/usr/libexec/PlistBuddy -c "add :wifi.network.ssid.'${SSID}':PrivateMACAddressModeUserSetting string ${mode}" /Library/Preferences/com.apple.wifi.known-networks.plist
+		/usr/libexec/PlistBuddy -c "add :wifi.network.ssid.'${ssid}':PrivateMACAddressModeUserSetting string ${mode}" "${plistPath}"
 	#use set for existing key
 	else		
 		#write the change
-		/usr/libexec/PlistBuddy -c "set :wifi.network.ssid.'${SSID}':PrivateMACAddressModeUserSetting ${mode}" /Library/Preferences/com.apple.wifi.known-networks.plist
+		/usr/libexec/PlistBuddy -c "set :wifi.network.ssid.'${ssid}':PrivateMACAddressModeUserSetting ${mode}" "${plistPath}"
 	fi
 	local exitCode=$?
 
 	#any non-zero code
 	if ((exitCode)); then
-		jamflog "[ERROR] code: $exitCode trying to set MAC Address mode for SSID \"${SSID}\" to \"$mode\""
+		jamflog "[ERROR] code: ${exitCode} trying to set Private MAC Address mode for SSID \"${ssid}\" to: \"${mode}\""
 	else
-		jamflog "[INFO] SSID \"${SSID}\" set to \"$mode\" MAC address mode"
+		jamflog "[INFO] SSID \"${ssid}\" Private MAC address mode set to: \"${mode}\"${again}"
 	fi
 	
-	#knock the juke box fonzy style (actually thanks MacAdmins @boberito) if restsartWiFi=1 and this is Sequoia and up
-	if ((restartWiFi_HC)) && [ $(sw_vers -productVersion | cut -d. -f1) -ge 15 ]; then
+	#no need to restart wifi on 14 and under
+	if ((restartWiFi)) && [ $(sw_vers -productVersion | cut -d. -f1) -le 14 ]; then
+		jamflog "[INFO] Restart specified but this macOS is 14 or under, skipping"
+	#knock the juke box fonzy style (actually thanks MacAdmins @boberito)
+	elif ((restartWiFi)); then
 		jamflog "[INFO] Restart Wi-Fi enabled: restarting cfprefsd, airportd"
 		#get actual network interface (usually en0)
 		networkInterface_WiFi=$(networksetup -listallhardwareports | grep -A1 "Hardware Port: Wi-Fi" | awk -F ': ' '/Device:/{print $2}')
@@ -140,7 +155,7 @@ function setSSIDMode(){
 		fi
 	fi
 
-	return $exitCode
+	return ${exitCode}
 }
 
 function getWiFiMACAddress(){
@@ -157,12 +172,11 @@ systemCheck
 #if not supplied use the current SSID
 if [ -z "${SSIDS}" ]; then
 	#jamflog "Getting SSID..."
-	#get the SSID _quickly_
+	#get the SSID _quickly_ thanks MacAdmins @jby
 	currrent_SSID=$(ipconfig getsummary en0 | awk -F ' SSID : ' '/ SSID : / {print $2}')
 
 	#one more attempt to get network SSID (in case en0 wasn't our WiFi), this can take hella long time ~6s but Sequoia broke `networksetup -getairportnetwork method` - https://snelson.us/2024/09/determining-a-macs-ssid-like-an-animal/
 	[ -z "${currrent_SSID}" ] && currrent_SSID=$(system_profiler -detailLevel basic SPAirPortDataType | awk '/Current Network Information:/ { getline; print substr($0, 13, (length($0) - 13)); exit }')
-
 
 	SSIDS="${currrent_SSID}"
 fi
@@ -176,7 +190,7 @@ fi
 #finally go through one or more SSIDs
 IFS="${delimiter}"
 for SSID in ${SSIDS}; do
-	setSSIDMode "${SSID}"
+	setPrivateAddressModebySSID "${SSID}" "${MODE}" "${restartWiFi}"
 	#keep tally for zero/non-zero exit code
 	exitCode=$(($? + exitCode))	
 done
