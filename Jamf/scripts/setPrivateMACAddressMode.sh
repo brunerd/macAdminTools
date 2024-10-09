@@ -1,10 +1,10 @@
 #!/bin/bash
-#setPrivateMACAddressMode (20241005) - set the mode of macOS Sequoia's Private Address mode (aka MAC randomization) for the curent or specified WiFi SSID
+#setPrivateMACAddressMode (20241009) - set the mode of macOS Sequoia's Private Address mode (aka MAC randomization) for the curent or specified WiFi SSID
 #Notes: 
-#1) Sonoma and under: Can be used to prevent MAC randomization upon upgrade to Sequoia, has no effect before upgrade to Sequoia
-#2) Sequoia and up: Changes reliably take effect after restart or set restartWiFi_HC="1" do this without reboot (toggles Airport power make sure it reconnects!)
+#1) Sonoma and under: Setting `PrivateMACAddressModeUserSetting` to `off` can be used to prevent MAC randomization upon upgrade to Sequoia, has no effect before upgrade to Sequoia
+#2) Sequoia and up: Changes reliably take effect _after restart_ or set restartWiFi_HC="1" do this without reboot (toggles Airport power make sure it reconnects!)
 #3) All macOS versions: Deploying a config profile with a Wi-Fi payload will rewrite all data for an SSID in com.apple.wifi.known-networks
-
+#4) A new key PrivateMACAddressModeSystemSetting can be set to _disable_ Private MAC Addresses _by default_ for newly joined or existing SSIDs that do not have the `PrivateMACAddressModeUserSetting` key set to `off` this will take effect after reboot or set "restartWiFi_HC=1"
 #See Jamf Extension Attribute `OS-Private MAC Address Mode` for reporting and Smart Group usage
 
 : <<-LICENSE_BLOCK
@@ -17,27 +17,37 @@ LICENSE_BLOCK
 #############
 # VARIABLES #
 #############
-#use Jamf script parameters or hardcode (HC) for other MDMs
+#Jamf script parameters (titles in quotes) or hardcode with *_HC vars for other MDMs
 
-#the randomization mode (PrivateMACAddressModeUserSetting): hardcoded default is "off", or specify as Script parameter 4 with values: "static" (Fixed), "rotating"
+#"Private MAC Address Mode (off*/static/rotating)" - the randomization mode for key PrivateMACAddressModeUserSetting: hardcoded default is "off"
+#Values: "off", "static" (Fixed), or "rotating"
+#Hardcode or specify as Jamf Script parameter 4
 MODE_HC="off"
 MODE="${4:-$MODE_HC}"
 
-#specify multiple SSIDs, comma delimited (or see below), Hardcode or specify as Script parameter 5. If empty will use current Wi-Fi SSID
+#"SSID List CSV (blank=current Wi-Fi)" - specify multiple SSIDs, comma delimited by default (or see below), if empty will use current Wi-Fi SSID
+#Hardcode or specify as Jamf Script parameter 5. 
 SSIDS_HC=""
 SSIDS="${5:-$SSIDS_HC}"
 
-#default delimiter for SSID list is comma , change if your SSIDs contain commas. Hardcode or specify as Script parameter 6
+#"Default SSID list CSV delimiter (default is comma ,)" - default is comma (,) change if your SSIDs contain commas. 
+#Hardcode alternate delimiters or specify as Jamf Script parameter 6
 delimiter_HC=$','
 delimiter="${6:-$delimiter_HC}"
 
-#Restart Wi-Fi causes the changes to take effect without reboot BUT you better make sure your Wi-Fi reconnects, toggles "Airport power"
-#0=off, 1=on
+#"Restart Wi-Fi (0*/1)" - causes the changes to take effect without rebooting BUT you better make sure your Wi-Fi reconnects, toggles "Airport power" (macOS 15+ only)
+#Values: 0=leave wi-fi alone, 1=restart wi-fi
+#Hardcode or specify as Jamf Script parameter 7
 restartWiFi_HC="0"
 restartWiFi="${7:-$restartWiFi_HC}"
 #how long to wait after powering WiFi back up to report on MAC address, 7 seems good, 5 is cutting close?
 reconnectWaitSec="7"
 
+#"Disable Private MAC Address Mode by default (unset*/0/1)" - sets the default Private Address mode for newly joined WiFi networks
+#this will have no effect if `PrivateMACAddressModeUserSetting` key is _already_ set (to `static` or `rotating`) for an exiting SSID 
+#Values: 1=(disable is true) Private MAC Address Mode defaults to OFF, 0=(disable is false) Private MAC Address Mode defaults to ON for networks without PrivateMACAddressModeUserSetting set
+disableMACAddressModeByDefault_HC="" 
+disableMACAddressModeByDefault="${8:-$disableMACAddressModeByDefault_HC}"
 
 #############
 # FUNCTIONS #
@@ -163,11 +173,29 @@ function getWiFiMACAddress(){
 	ifconfig "${interface}" 2>/dev/null | grep ether | cut -d ' ' -f2
 }
 
+function setPrivateMACAddressModeSystemSetting(){
+	#0="(disablement is false) Private MAC Address Mode defaults to ON ", 1="(disablement is true) Private MAC Address Mode defaults to OFF" - https://community.jamf.com/t5/jamf-pro/disable-wi-fi-private-mac-address-on-macos-15/m-p/326131/highlight/true#M279371
+	local value="${1}"
+	local plist="/Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist"
+	local key="PrivateMACAddressModeSystemSetting"
+	
+	if ! grep -E -q '^[0|1]$' <<< "${value}"; then
+		jamflog "Choose 0 (false) or 1 (true) for (disable)${key}, invalid value: ${value}"
+		return 1
+	fi
+
+	jamflog "[INFO] Setting (disable)${key} to: ${value}"
+	defaults write "${plist}" "${key}" -int "${value}"
+}
+
 ########
 # MAIN #
 ########
 
 systemCheck
+
+#set the global prefs (disable) default Private MAC Address mode
+[ -n "${disableMACAddressModeByDefault}" ]&& setPrivateMACAddressModeSystemSetting "${disableMACAddressModeByDefault}"
 
 #if not supplied use the current SSID
 if [ -z "${SSIDS}" ]; then
