@@ -1,6 +1,13 @@
 #!/bin/bash
-#Joel Bruner - outputs human readable per-SSID Private MAC Address randomization settings introduced in Sequoia
+#getPrivateMACAddressMode (20241009) - outputs human readable per-SSID Private MAC Address randomization settings introduced in Sequoia
 #possible values of PrivateMACAddressModeUserSetting are: off, static, rotating, or NOT_SET
+#possible values of PrivateMACAddressModeSystemSetting are: 0 (ON), 1 (OFF), or NOT_SET
+
+#sample output:
+#PrivateMACAddressModeSystemSetting: 1 (OFF)
+#
+#SSID: SomeSSID
+#MODE: rotating
 
 : <<-LICENSE_BLOCK
 getPrivateMACAddressMode Copyright (c) 2024 Joel Bruner (https://github.com/brunerd)
@@ -39,6 +46,23 @@ function getModeForSSID(){
 ########
 # MAIN #
 ########
+
+[ $UID != 0 ] && { echo "Run as root!" >&2 ; exit 1; }
+
+#`PrivateMACAddressModeSystemSetting` sets the global _default_ mode for newly joined SSIDs, if `PrivateMACAddressModeUserSetting` already set to static/rotating will have no effect an SSID
+#see: https://community.jamf.com/t5/jamf-pro/disable-wi-fi-private-mac-address-on-macos-15/m-p/326131 and 
+sysConfigAirportPrefs="/Library/Preferences/SystemConfiguration/com.apple.airport.preferences.plist"
+if [ -e "${sysConfigAirportPrefs}" ]; then
+	globalSetting=$(defaults read "${sysConfigAirportPrefs}" "PrivateMACAddressModeSystemSetting" 2>/dev/null)
+	if [ -n "${globalSetting}" ]; then
+		#`PrivateMACAddressModeSystemSetting` is poorly named, pretend it's a shell return code or prepend (disable) to make sense of it?
+		#1="Default Private Address Mode is OFF (disable true)" or else 0="Default Private Address Mode is ON (disable false)",
+		((globalSetting)) && meaning=" (true)" || meaning=" (false)"
+	fi
+	#the key name truly lacks clarity let's help it out and add some "meaning"
+	echo "(disable)PrivateMACAddressModeSystemSetting: ${globalSetting:-NOT_SET}${meaning}"
+	echo
+fi
 
 #if nothing specified
 if [ -z "${SSIDS}" ]; then
