@@ -231,7 +231,7 @@ systemCheck
 if [ -n "${disableMACAddressModeByDefault}" ]; then
 	setPrivateMACAddressModeSystemSetting "${disableMACAddressModeByDefault}"
 
-	#if no SSIDs specified but restartWiFi=1 and we are making THIS change, this might still be needed
+	#if we are making THIS change and restartWiFi=1, this might still be needed
 	((restartWiFi)) && shouldRestartWiFi=1
 fi
 
