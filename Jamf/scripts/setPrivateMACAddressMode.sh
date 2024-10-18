@@ -1,5 +1,5 @@
 #!/bin/bash
-#setPrivateMACAddressMode (20241009) - set the mode of macOS Sequoia's Private Address mode (aka MAC randomization) for the curent or specified WiFi SSID
+#setPrivateMACAddressMode (20241018) - set the mode of macOS Sequoia's Private Address mode (aka MAC randomization) for the curent or specified WiFi SSID
 #Notes: 
 #1) Sonoma and under: Setting `PrivateMACAddressModeUserSetting` to `off` can be used to prevent MAC randomization upon upgrade to Sequoia, has no effect before upgrade to Sequoia
 #2) Sequoia and up: Changes reliably take effect _after restart_ or set restartWiFi_HC="1" do this without reboot (toggles Airport power make sure it reconnects!)
@@ -80,6 +80,18 @@ function systemCheck(){
 		"off"|"static"|"rotating"):;;
 		*)jamflog "[ERROR] Invalid mode \"${MODE}\", choose: off/static/rotating, exiting";exit 1;;
 	esac
+
+	#we'll use this later for restart too
+	currentSSID=$(getCurrentWiFiSSID)
+	
+	#if not supplied use the current SSID
+	if [ -z "${SSIDS}" ] && [ -n "${currentSSID}" ]; then
+		SSIDS="${currentSSID}"
+		jamflog "[INFO] No SSID specified, auto-detected: ${currentSSID}"
+	#if still blank, bail
+	elif [ -z "${SSIDS}" ]; then
+		jamflog "[WARN] No SSID specified, no WiFi connection for auto-detect"
+	fi
 }
 
 #this will overide MDM DisableAssociationMACRandomization even if set to TRUE, although when profile applied will remove this value from plist but can be re-added
@@ -87,7 +99,6 @@ function setPrivateAddressModebySSID(){ # <SSID> <Mode> <Restart Wi-Fi>
 
 	local ssid="${1}"
 	local mode="${2}" #off,static,rotating
-	local restartWiFi="${3}" #0=no restart,1=restart wifi on macos 14+
 
 	local plistPath="/Library/Preferences/com.apple.wifi.known-networks.plist"
 
@@ -105,7 +116,7 @@ function setPrivateAddressModebySSID(){ # <SSID> <Mode> <Restart Wi-Fi>
 	
 	#note if change not needed
 	if [ "${PrivateMACAddressMode}" = "${mode}" ]; then
-		jamflog "[INFO] SSID \"$ssid\" already set to \"${mode}\""
+		#jamflog "[INFO] SSID \"$ssid\" already set to \"${mode}\""
 		#once is never enough?
 		local again=" (again)"
 	fi
@@ -130,41 +141,6 @@ function setPrivateAddressModebySSID(){ # <SSID> <Mode> <Restart Wi-Fi>
 		jamflog "[INFO] SSID \"${ssid}\" Private MAC address mode set to: \"${mode}\"${again}"
 	fi
 	
-	#no need to restart wifi on 14 and under
-	if ((restartWiFi)) && [ $(sw_vers -productVersion | cut -d. -f1) -le 14 ]; then
-		jamflog "[INFO] Restart specified but this macOS is 14 or under, skipping"
-	#knock the juke box fonzy style (actually thanks MacAdmins @boberito)
-	elif ((restartWiFi)); then
-		jamflog "[INFO] Restart Wi-Fi enabled: restarting cfprefsd, airportd"
-		#get actual network interface (usually en0)
-		networkInterface_WiFi=$(networksetup -listallhardwareports | grep -A1 "Hardware Port: Wi-Fi" | awk -F ': ' '/Device:/{print $2}')
-		MAC_before="$(getWiFiMACAddress ${networkInterface_WiFi})"
-		jamflog "[INFO] MAC Address (${networkInterface_WiFi:=en0}) before: ${MAC_before}"
-		#make sure the defaults system is on the same page since we used PlistBuddy
-		killall cfprefsd; sleep .5
-		#this will make the airport toolbar and System Settings aware of the change but _MAC is still randomized_
-		killall airportd; sleep .5
-		jamflog "[INFO] Powering down Wi-Fi (${networkInterface_WiFi})"
-		#down the interface
-		networksetup -setairportpower "${networkInterface_WiFi}" off; sleep 1
-		jamflog "[INFO] Powering up Wi-Fi (${networkInterface_WiFi}) and waiting ${reconnectWaitSec} seconds..."
-		#up the interface
-		networksetup -setairportpower "${networkInterface_WiFi}" on
-		#we really don't know if we will reconnect or how it could take but let's wait a smidge and see
-		sleep "${reconnectWaitSec}"
-		#if we are active let's see what the MAC is (it doesn't change until it connects to WiFi again)
-		if [ "$(ifconfig ${networkInterface_WiFi} | awk -F ': ' '/status/{print $2}')" = "active" ]; then
-			MAC_after="$(getWiFiMACAddress ${networkInterface_WiFi})"
-			if [ "${MAC_before}" != "${MAC_after}" ]; then
-				jamflog "[INFO] SUCCESS! MAC Address (${networkInterface_WiFi}) after: ${MAC_after}"
-			else
-				jamflog "[ERROR] MAC Address (${networkInterface_WiFi}) unchanged after: ${MAC_after}"
-			fi
-		else
-			jamflog "[WARN] ${networkInterface_WiFi} did not reconnect after wating ${reconnectWaitSec} seconds"
-		fi
-	fi
-
 	return ${exitCode}
 }
 
@@ -188,6 +164,63 @@ function setPrivateMACAddressModeSystemSetting(){
 	defaults write "${plist}" "${key}" -int "${value}"
 }
 
+function getCurrentWiFiSSID(){
+	#jamflog "Getting SSID..."
+	#get the SSID _quickly_ thanks MacAdmins @jby
+	local currrent_SSID=$(ipconfig getsummary en0 | awk -F ' SSID : ' '/ SSID : / {print $2}')
+
+	#one more attempt to get network SSID (in case en0 wasn't our WiFi), this can take hella long time ~6s but Sequoia broke `networksetup -getairportnetwork` method - https://snelson.us/2024/09/determining-a-macs-ssid-like-an-animal/
+	[ -z "${currrent_SSID}" ] && currrent_SSID=$(system_profiler -detailLevel basic SPAirPortDataType | awk '/Current Network Information:/ { getline; print substr($0, 13, (length($0) - 13)); exit }')
+
+	echo "${currrent_SSID}"
+}
+
+function restartWiFi(){
+
+	#no need to restart wifi on 14 and under
+	majorVersion="$(sw_vers -productVersion | cut -d. -f1)"
+	if [ "${majorVersion}" -lt 15 ]; then
+		jamflog "[INFO] Wi-Fi restart skipped, settings do not affect macOS $majorVersion (15 and up only)"
+		return
+	fi
+	
+	#knock the juke box fonzy style (actually thanks MacAdmins @boberito)
+	jamflog "[INFO] Restart Wi-Fi enabled: restarting cfprefsd, airportd"
+
+	#get actual network interface (usually en0)
+	networkInterface_WiFi=$(networksetup -listallhardwareports | grep -A1 "Hardware Port: Wi-Fi" | awk -F ': ' '/Device:/{print $2}')
+	MAC_before="$(getWiFiMACAddress ${networkInterface_WiFi})"
+
+	jamflog "[INFO] MAC Address (${networkInterface_WiFi:=en0}) before: ${MAC_before}"
+	#make sure the defaults system is on the same page since we used PlistBuddy
+	killall cfprefsd; sleep .5
+	#this will make the airport toolbar and System Settings aware of the change but _MAC is still randomized_
+	killall airportd; sleep .5
+
+	jamflog "[INFO] Powering down Wi-Fi (${networkInterface_WiFi})"
+	#down the interface
+	networksetup -setairportpower "${networkInterface_WiFi}" off; sleep 1
+	jamflog "[INFO] Powering up Wi-Fi (${networkInterface_WiFi}) and waiting ${reconnectWaitSec} seconds..."
+	#up the interface
+	networksetup -setairportpower "${networkInterface_WiFi}" on
+
+	#we really don't know if we will reconnect or how it could take but let's wait a smidge and see
+	sleep "${reconnectWaitSec}"
+
+	#if we are active let's see what the MAC is (it doesn't change until it connects to WiFi again)
+	if [ "$(ifconfig ${networkInterface_WiFi} | awk -F ': ' '/status/{print $2}')" = "active" ]; then
+		MAC_after="$(getWiFiMACAddress ${networkInterface_WiFi})"
+		if [ "${MAC_before}" != "${MAC_after}" ]; then
+			jamflog "[INFO] SUCCESS! MAC Address (${networkInterface_WiFi}) after: ${MAC_after}"
+		else
+			jamflog "[WARN] MAC Address (${networkInterface_WiFi}) unchanged after: ${MAC_after}"
+		fi
+	else
+		jamflog "[WARN] ${networkInterface_WiFi} did not reconnect after wating ${reconnectWaitSec} seconds"
+		exitCode=$((1 + exitCode))
+	fi
+}
+
 ########
 # MAIN #
 ########
@@ -195,32 +228,26 @@ function setPrivateMACAddressModeSystemSetting(){
 systemCheck
 
 #set the global prefs (disable) default Private MAC Address mode
-[ -n "${disableMACAddressModeByDefault}" ]&& setPrivateMACAddressModeSystemSetting "${disableMACAddressModeByDefault}"
+if [ -n "${disableMACAddressModeByDefault}" ]; then
+	setPrivateMACAddressModeSystemSetting "${disableMACAddressModeByDefault}"
 
-#if not supplied use the current SSID
-if [ -z "${SSIDS}" ]; then
-	#jamflog "Getting SSID..."
-	#get the SSID _quickly_ thanks MacAdmins @jby
-	currrent_SSID=$(ipconfig getsummary en0 | awk -F ' SSID : ' '/ SSID : / {print $2}')
-
-	#one more attempt to get network SSID (in case en0 wasn't our WiFi), this can take hella long time ~6s but Sequoia broke `networksetup -getairportnetwork method` - https://snelson.us/2024/09/determining-a-macs-ssid-like-an-animal/
-	[ -z "${currrent_SSID}" ] && currrent_SSID=$(system_profiler -detailLevel basic SPAirPortDataType | awk '/Current Network Information:/ { getline; print substr($0, 13, (length($0) - 13)); exit }')
-
-	SSIDS="${currrent_SSID}"
+	#if no SSIDs specified but restartWiFi=1 and we are making THIS change, this might still be needed
+	((restartWiFi)) && shouldRestartWiFi=1
 fi
 
-#if still blank, bail
-if [ -z "${SSIDS}" ]; then
-	jamflog "[ERROR] No SSID specified, no WiFi connection, exiting."
-	exit 1
-fi
-
-#finally go through one or more SSIDs
+#go through one or more SSIDs
 IFS="${delimiter}"
 for SSID in ${SSIDS}; do
-	setPrivateAddressModebySSID "${SSID}" "${MODE}" "${restartWiFi}"
+	setPrivateAddressModebySSID "${SSID}" "${MODE}"
 	#keep tally for zero/non-zero exit code
-	exitCode=$(($? + exitCode))	
+	exitCode=$(($? + exitCode))
+
+	#only if we are currently connected to this SSID and restartWiFi=1
+	if ((restartWiFi)) && [ "${SSID}" = "${currentSSID}" ]; then
+		shouldRestartWiFi=1
+	fi
 done
+
+((shouldRestartWiFi)) && restartWiFi
 
 exit ${exitCode:-0}
