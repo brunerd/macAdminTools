@@ -1,5 +1,5 @@
 #!/bin/bash
-#backupJamf-scripts - download all scripts quickly via API, create CSVs of script meta-data (parameter, priority, etc...) updated for Bearer token (20240927)
+#backupJamf-scripts - download all scripts quickly via API, create CSVs of script meta-data (parameter, priority, etc...) updated for Bearer token (20241211)
 
 : <<-LICENSE_BLOCK
 Copyright (c) 2020 Joel Bruner (https://github.com/brunerd)
@@ -58,10 +58,17 @@ locations=( "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Curren
 )
 
 #get a token if we need one (in this case we always do)
-function ensureTokenHeader {
+function ensureTokenHeader(){
 	local APIUSER="${1}"
 	local APIPASS="${2}"
 	local APIURL="${3}"
+
+	function ljt()(
+	{ set +x; } &> /dev/null; read -r -d '' JSCode <<-'EOT'
+	try{var query=decodeURIComponent(escape(arguments[0]));var file=decodeURIComponent(escape(arguments[1]));if(query===".")query="";else if(query[0]==="."&&query[1]==="[")query="$"+query.slice(1);if(query[0]==="/"||query===""){if(/~[^0-1]/g.test(query+" "))throw new SyntaxError("JSON Pointer allows ~0 and ~1 only: "+query);query=query.split("/").slice(1).map(function(f){return"["+JSON.stringify(f.replace(/~1/g,"/").replace(/~0/g,"~"))+"]"}).join("")}else if(query[0]==="$"||query[0]==="."&&query[1]!=="."||query[0]==="["){if(/[^A-Za-z_$\d\.\[\]'"]/.test(query.split("").reverse().join("").replace(/(["'])(.*?)\1(?!\\)/g,"")))throw new Error("Invalid path: "+query);}else query=query.replace("\\.","\udead").split(".").map(function(f){return"["+JSON.stringify(f.replace("\udead","."))+"]"}).join("");if(query[0]==="$")query=query.slice(1);var data=JSON.parse(readFile(file));try{var result=eval("(data)"+query)}catch(e){}}catch(e){printErr(e);quit()}if(result!==undefined)result!==null&&result.constructor===String?print(result):print(JSON.stringify(result,null,2));else printErr("Path not found.")
+	EOT
+	queryArg="${1}"; fileArg="${2}";jsc=$(find "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/" -name 'jsc');[ -z "${jsc}" ] && jsc=$(which jsc);[ -f "${queryArg}" -a -z "${fileArg}" ] && fileArg="${queryArg}" && unset queryArg;if [ -f "${fileArg:=/dev/stdin}" ]; then { errOut=$( { { "${jsc}" -e "${JSCode}" -- "${queryArg}" "${fileArg}"; } 1>&3 ; } 2>&1); } 3>&1;else [ -t '0' ] && echo -e "ljt (v1.0.8) - Little JSON Tool (https://github.com/brunerd/ljt)\nUsage: ljt [query] [filepath]\n  [query] is optional and can be JSON Pointer, canonical JSONPath (with or without leading $), or plutil-style keypath\n  [filepath] is optional, input can also be via file redirection, piped input, here doc, or here strings" >/dev/stderr && exit 0; { errOut=$( { { "${jsc}" -e "${JSCode}" -- "${queryArg}" "/dev/stdin" <<< "$(cat)"; } 1>&3 ; } 2>&1); } 3>&1; fi;if [ -n "${errOut}" ]; then /bin/echo "$errOut" >&2; return 1; fi
+	)
 
 	#error out if either of these are blank
 	[ -z "${APIUSER}" ] && echo "ERROR: NO USER" >&2 && exit
@@ -74,11 +81,12 @@ function ensureTokenHeader {
 		return
 	fi
 
-	local tokenRequest=$(/usr/bin/curl -s -q "${APIURL}/uapi/auth/tokens" -X POST -H "Authorization: Basic $(echo -n "${APIUSER}:${APIPASS}" | base64)")
-	[ -z "${tokenRequest}" ] && echo "Error: Unable to get token, check credentials, permissions and curl options." >&2 && return 1
+	if ! local tokenRequest=$(/usr/bin/curl -s -q "${APIURL}/api/v1/auth/token" -X POST -H "Authorization: Basic $(echo -n "${APIUSER}:${APIPASS}" | base64)"); then
+		echo "Error: Unable to get token, check credentials, permissions and curl options." >&2 && return 1
+	fi
 	
 	#only bad requests have the httpStatus property name
-	local httpStatus=$(ljt /httpStatus <<< "${tokenRequest}")
+	local httpStatus=$(ljt /httpStatus <<< "${tokenRequest}" 2>/dev/null)
 	[ -n "${httpStatus}" ] && echo "Error: $httpStatus" >&2 && return 1
 
 	local token=$(ljt /token <<< "${tokenRequest}")
@@ -90,57 +98,53 @@ function ensureTokenHeader {
 	echo "${tokenBearingHeader}"
 }
 
-function ensureAPIURL {
-	if [ -z "${APIURL}" ]; then
-		local enrolledAPIURL=$(defaults read /Library/Preferences/com.jamfsoftware.jamf.plist jss_url 2>/dev/null)
-		if [ -n "${enrolledAPIURL}" ]; then 
-			echo -n "Enter JSS URL or press reuturn for [${enrolledAPIURL}]: "
-			read APIURL
-			[ -z "${APIURL}" ] && APIURL=${enrolledAPIURL}
-		else
-			while [ -z "$APIURL" ]; do
-			echo -n "Enter full JSS URL: "
-				read APIURL
-			done		
-		fi
-	else
-		echo "APIURL: ${APIURL}"
-	fi	
-}
+function ensureAPIDetails(){
 
-function ensureAPIUSER {
-	if [ -z "${APIUSER}" ]; then
+	local default_URL=$(defaults read /Library/Preferences/com.jamfsoftware.jamf.plist jss_url)
+
+	if [ -z "$APIURL" ]; then
+		echo ""
+		read -p "API URL [${default_URL:-NOT SET}]: " APIURL
+		#trim any trailing slashes from API URL
+		if [ -z "${APIURL}" ] && [ -n "${default_URL}" ]; then
+			APIURL="${default_URL}"
+		fi
+		#trim trailing /
+		APIURL=$(sed 's,/$,,' <<< "$APIURL" )
+	else
+		#trim any trailing slashes from API URL
+		APIURL=$(sed 's,/$,,' <<< "$APIURL" )
+
+		echo "API URL: \"$APIURL\""
+	fi
+
+	if [ -z "$APIUSER" ]; then
 		while [ -z "$APIUSER" ]; do
-		echo -n "Enter JSS username: "
-			read APIUSER
+			read -p "API USERNAME: " APIUSER
 		done
 	else
-		echo "APIUSER: ${APIUSER}"
-	fi	
+		echo "API USERNAME: \"$APIUSER\""
+	fi
 }
 
-function ensureAPIPASS {
-if [ -z "${APIPASS}" ]; then
-	#turn off echo
-	stty -echo
-
+function ensureAPIPassword(){
 	while [ -z "$APIPASS" ]; do
-		echo -n "Enter account password: "
-		read APIPASS
+		echo ""
+		#turn off echo
+		stty -echo
+		read -p "API PASSWORD (no action until confirmation): " APIPASS
+		#turn on echo
+		stty echo
+		echo
 	done
-	#turn on echo
-	stty echo
-	echo
-fi
 }
 
 ########
 # MAIN #
 ########
 
-ensureAPIURL
-ensureAPIUSER
-ensureAPIPASS
+ensureAPIDetails
+ensureAPIPassword
 
 #trim APIURL to just the host name
 APIHOSTNAME=$(sed -e 's/^http[s]*:\/\///g' -e 's/:.*$//' -e 's/\/$//' <<< "${APIURL}")
@@ -148,14 +152,14 @@ stampedFolder="scripts-${APIHOSTNAME}-${dateStampNow}"
 destinationFolder="${myFolderPath}"/"${stampedFolder}"
 destinationCSVFilename="scripts-${APIHOSTNAME}-${dateStampNow}.csv"
 
-#get our token for the UAPI call
+#get our token
 tokenHeader="$(ensureTokenHeader "${APIUSER}" "${APIPASS}" "${APIURL}")"
 [ -z "${tokenHeader}" ] && exit 1
 
 echo "Querying ${APIHOSTNAME}..."
 
 #get our raw JSON reply
-rawJSON=$(/usr/bin/curl -s "${APIURL}/uapi/v1/scripts?page=0&page-size=1000" -X GET -H "${tokenHeader}" )
+rawJSON=$(/usr/bin/curl -s "${APIURL}/api/v1/scripts?page=0&page-size=1000" -X GET -H "${tokenHeader}" )
 
 #if httpStatus is present something went wrong
 httpResponse=$(ljt /httpStatus <<< "${rawJSON}")
