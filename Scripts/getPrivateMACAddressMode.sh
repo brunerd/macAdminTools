@@ -1,5 +1,5 @@
 #!/bin/bash
-#getPrivateMACAddressMode (20241009) - outputs human readable per-SSID Private MAC Address randomization settings introduced in Sequoia
+#getPrivateMACAddressMode (20250122) - outputs human readable per-SSID Private MAC Address randomization settings introduced in Sequoia
 #possible values of PrivateMACAddressModeUserSetting are: off, static, rotating, or NOT_SET
 #possible values of PrivateMACAddressModeSystemSetting are: 0 (ON), 1 (OFF), or NOT_SET
 
@@ -61,21 +61,23 @@ if [ -e "${sysConfigAirportPrefs}" ]; then
 	fi
 	#the key name truly lacks clarity let's help it out and add some "meaning"
 	echo "(disable)PrivateMACAddressModeSystemSetting: ${globalSetting:-NOT_SET}${meaning}"
-	echo
 fi
 
 #if nothing specified
 if [ -z "${SSIDS}" ]; then
 	#get all known networks
-	SSIDS=$(defaults export /Library/Preferences/com.apple.wifi.known-networks.plist - | xmllint --xpath "/plist/dict/key/text()" /dev/stdin | sed "s/^wifi\.network\.ssid\.//g")
+	SSIDS=$(defaults export /Library/Preferences/com.apple.wifi.known-networks.plist - | xmllint --xpath "/plist/dict/key/text()" /dev/stdin 2>/dev/null | sed "s/^wifi\.network\.ssid\.//g")
 fi
 
-#go through one or more SSIDs
-IFS="${SSID_delimiters}"
-for SSID in $SSIDS; do
-	#extra line above if more than one go around
-	((i)) && echo
-	echo "SSID: ${SSID}"
-	echo "MODE: $(getModeForSSID "${SSID}")"
-	let i++
-done
+if [ -n "${SSIDS}" ]; then
+	echo ""
+	#go through one or more SSIDs
+	IFS="${SSID_delimiters}"
+	for SSID in $SSIDS; do
+		#extra line above if more than one go around
+		((i)) && echo
+		echo "SSID: ${SSID}"
+		echo "MODE: $(getModeForSSID "${SSID}")"
+		let i++
+	done
+fi
