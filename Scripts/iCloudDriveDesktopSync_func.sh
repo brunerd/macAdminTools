@@ -8,21 +8,16 @@
 
 #must be run as root
 function iCloudDriveDesktopSync()(
+
 	consoleUser=$(stat -f %Su /dev/console)
 
 	#if root (loginwindow) grab the last console user
-	if [ "${consoleUser}" = "root" ]; then
-		consoleUser=$(/usr/bin/last -1 -t console | awk '{print $1}')
-	fi
+	[ "${consoleUser}" = "root" ] && consoleUser=$(/usr/bin/last -1 -t console | awk '{print $1}')
 
-	#if this xattr exists then sync is turned on
-	xattr_desktop=$(sudo -u $consoleUser /bin/sh -c 'xattr -p com.apple.icloud.desktop ~/Desktop 2>/dev/null')
+	homeFolder=$(/usr/libexec/PlistBuddy -c "print dsAttrTypeStandard\:NFSHomeDirectory:0" /dev/stdin 2>/dev/null <<< "$(dscl -plist . -read "/Users/${consoleUser}" NFSHomeDirectory)")
 
-	if [ -z "${xattr_desktop}" ]; then
-		return 1
-	else
-		return 0
-	fi
+	#Checks for multiple attributes: macOS Sequoia (com.apple.file-provider-domain-id) and previous OSes (com.apple.icloud.desktop)
+	grep -q -E 'com\.apple\.file-provider-domain-id|com\.apple\.icloud\.desktop' <<< $(xattr "${homeFolder}/Desktop") && return 0 || return 1
 )
 
 #example function usage, if leverages the return values
