@@ -1,7 +1,7 @@
 #!/bin/bash
 : <<-LICENSE_BLOCK
-Limit IP Tracking Status Checker - (https://github.com/brunerd)
-Copyright (c) 2022 Joel Bruner (https://github.com/brunerd)
+Limit IP Tracking Status Checker (20250204) - (https://github.com/brunerd)
+Copyright (c) 2025 Joel Bruner (https://github.com/brunerd)
 Licensed under the MIT License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -26,13 +26,26 @@ function limitIPTracking()(
 	EOT
 	queryArg="${1}"; fileArg="${2}";jsc=$(find "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/" -name 'jsc');[ -z "${jsc}" ] && jsc=$(which jsc);[ -f "${queryArg}" -a -z "${fileArg}" ] && fileArg="${queryArg}" && unset queryArg;if [ -f "${fileArg:=/dev/stdin}" ]; then { errOut=$( { { "${jsc}" -e "${JSCode}" -- "${queryArg}" "${fileArg}"; } 1>&3 ; } 2>&1); } 3>&1;else [ -t '0' ] && echo -e "ljt (v1.0.8) - Little JSON Tool (https://github.com/brunerd/ljt)\nUsage: ljt [query] [filepath]\n  [query] is optional and can be JSON Pointer, canonical JSONPath (with or without leading $), or plutil-style keypath\n  [filepath] is optional, input can also be via file redirection, piped input, here doc, or here strings" >/dev/stderr && exit 0; { errOut=$( { { "${jsc}" -e "${JSCode}" -- "${queryArg}" "/dev/stdin" <<< "$(cat)"; } 1>&3 ; } 2>&1); } 3>&1; fi;if [ -n "${errOut}" ]; then /bin/echo "$errOut" >&2; return 1; fi
 	)
+	
+	#sequoia broke the old ways of getting SSID
+	function getCurrentWiFiSSIDforInterface(){
+		#no interface, error
+		[ -z "${1}" ] && return 1
+
+		#get the SSID _quickly_ thanks MacAdmins @jby
+		local currrent_SSID=$(ipconfig getsummary "${1}" | awk -F ' SSID : ' '/ SSID : / {print $2}')
 		
+		[ -z "${currrent_SSID}" ] && return 1
+		
+		echo "${currrent_SSID}"; return 0
+	}
+
 	#test interface specified or fallback to default interface
 	interfaceID=${1:-$(route get 0.0.0.0 2>/dev/null | awk '/interface: / {print $2}')}
 
 	#WIFI: key: PrivacyProxyEnabled, file: /Library/Preferences/com.apple.wifi.known-networks.plist
 	#if no error getting WiFi SSID, then we are WiFi
-	if networksetup -getairportnetwork "${interfaceID}" &>/dev/null && wifiSSID=$(awk -F ': ' '{print $2}' <<< "$(networksetup -getairportnetwork "${interfaceID}" 2>/dev/null)"); then
+	if wifiSSID=$(getCurrentWiFiSSIDforInterface "${interfaceID}"); then
 
 		#key name inside plist
 		keyName="wifi.network.ssid.${wifiSSID}"
@@ -73,7 +86,7 @@ function limitIPTracking()(
 ########
 
 if [ ! -r /Library/Preferences/com.apple.wifi.known-networks.plist ]; then
-	echo "Insufficient preferences to determine WiFi state, run as root" >/dev/stderr
+	echo "Insufficient privileges to determine WiFi state, run as root" >/dev/stderr
 	exit 1
 fi
 
