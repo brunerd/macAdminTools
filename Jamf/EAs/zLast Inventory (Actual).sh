@@ -10,7 +10,7 @@
 # The Jamf EA date type does not consider time zone offsets so we must normalize the time to UTC (-u) for the most consistent behavior
 # When viewing an EA date in a Report, Inventory Display, or Computer Record it will not be localized according to Preferences as built-in dates are
 
-#ISO 8601(-ish) date format with UTC/GMT normalized time (YYYY-MM-DD HH:MM:SS)
+#MySQL DATETIME format with time normalized to UTC (YYYY-MM-DD HH:MM:SS)
 DATE_NORMALIZED=$(date -u +"%F %T")
 
 echo "<result>${DATE_NORMALIZED}</result>"
