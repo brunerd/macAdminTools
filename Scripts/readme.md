@@ -2,6 +2,8 @@ Here's some useful scripts:
 
 `consoleHasAdobeCCSignIn_func.sh` - see if the console user is signed into Adobe CC
 
+`cvelookup.sh` - look up CVE info (in a file, URL, or list of CVEs) from NVD and output in CSV format
+
 `doNotDisturb.sh` - function to see if console user has Focus (formerly DnD) enabled (so you don't bug them)
 
 `getAutoLogin.sh` - gets (deobfuscates) the on-disk the autologin password stored in /etc/kcpassword
