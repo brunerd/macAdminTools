@@ -66,7 +66,7 @@ function getSupportedMacOSVersions_ASLS_legacy()(
 	done
 
 	#sort them
-	sort -rV <<< "${supportedVersions}"
+	sort -ruV <<< "${supportedVersions}"
 )
 
 getSupportedMacOSVersions_ASLS_legacy "$@"
