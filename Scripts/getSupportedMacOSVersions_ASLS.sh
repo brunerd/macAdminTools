@@ -51,7 +51,7 @@ function getSupportedMacOSVersions_ASLS()(
 	done
 
 	#echo out the results sorted in descending order (newest on top)
-	sort -rV <<< "${supportedVersions}"
+	sort -ruV <<< "${supportedVersions}"
 )
 
 #pass possible "-a" argument
